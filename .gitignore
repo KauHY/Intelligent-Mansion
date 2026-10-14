@@ -1,2 +1,5 @@
 /output
 /tmp
+/tmp_photos/*
+/.venv/
+__pycache__/

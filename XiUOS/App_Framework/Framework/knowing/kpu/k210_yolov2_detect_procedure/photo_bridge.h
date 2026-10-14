@@ -1,0 +1,118 @@
+/* PC photo protocol v1, edu-riscv64 XiZi only. Included in the detector TU so
+ * camera ownership stays with its existing worker. No second UART reader. */
+#ifndef XI_PHOTO_BRIDGE_H
+#define XI_PHOTO_BRIDGE_H
+#if defined(ADD_XIZI_FEATURES) && defined(BSP_USING_LCD)
+#include <shell.h>
+#include "photo_toast_font.h"
+static pthread_mutex_t photo_mutex;
+static volatile int photo_ready;
+static unsigned int photo_id;
+/* 0 idle, 1 requested, 2 sending, 3 awaiting saved, 4 saved */
+static int photo_state;
+
+static void photo_command(int argc, char **argv, int saved)
+{
+    char *end;
+    unsigned long id;
+    if (!photo_ready || argc != 2) return;
+    id = strtoul(argv[1], &end, 10);
+    if (!*argv[1] || *end || id == 0 || id > 0x7fffffffUL) return;
+    PrivMutexObtain(&photo_mutex);
+    if (saved) {
+        if (photo_state == 3 && photo_id == id) photo_state = 4;
+    } else if (photo_state == 0 || photo_state == 3) {
+        photo_id = (unsigned int)id;
+        photo_state = 1;
+    }
+    PrivMutexAbandon(&photo_mutex);
+}
+static int photo_capture(int argc, char **argv) { photo_command(argc, argv, 0); return 0; }
+static int photo_saved(int argc, char **argv) { photo_command(argc, argv, 1); return 0; }
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN),
+                 photo_capture, photo_capture, capture camera frame for PC);
+SHELL_EXPORT_CMD(SHELL_CMD_PERMISSION(0)|SHELL_CMD_TYPE(SHELL_TYPE_CMD_MAIN),
+                 photo_saved, photo_saved, confirm PC photo saved);
+
+static void photo_init(void)
+{
+    if (PrivMutexCreate(&photo_mutex, NULL) == 0) photo_ready = 1;
+    else printf("[photo] mutex initialization failed\n");
+}
+
+/* Called after camera/KPU completion and BEFORE detection boxes are painted.
+ * The capture worker cannot start another DVP shot until transmission ends. */
+static void photo_send_frame(void)
+{
+    unsigned int id = 0;
+    if (!photo_ready) return;
+    PrivMutexObtain(&photo_mutex);
+    if (photo_state == 1) { id = photo_id; photo_state = 2; }
+    PrivMutexAbandon(&photo_mutex);
+    if (!id) return;
+    size_t size = (size_t)image_width * image_height * 2;
+    printf("\n@PHOTO BEGIN %u %d %d %u RGB565LE %08x\n", id,
+           image_width, image_height, (unsigned int)size,
+           (unsigned int)model_crc32(showbuffer, size));
+    for (size_t offset = 0; offset < size; offset += 64) {
+        static const char hex[] = "0123456789abcdef";
+        char line[192];
+        int n = snprintf(line, sizeof(line), "\n@PHOTO DATA %u %u ", id, (unsigned int)offset);
+        size_t count = size - offset;
+        if (count > 64) count = 64;
+        for (size_t i = 0; i < count; i++) {
+            unsigned char b = showbuffer[offset + i];
+            line[n++] = hex[b >> 4]; line[n++] = hex[b & 15];
+        }
+        line[n++] = '\n'; line[n] = 0;
+        printf("%s", line);
+        PrivTaskDelay(1); /* let console RX/shell and other tasks run */
+    }
+    PrivMutexObtain(&photo_mutex);
+    photo_state = 3;
+    PrivMutexAbandon(&photo_mutex);
+    printf("\n@PHOTO END %u\n", id);
+    fflush(stdout);
+}
+
+/* Rendering stays in the LCD owner's thread. Bitmap includes only the exact
+ * Chinese phrase, avoiding an ASCII-only LCD font or a large CJK dependency. */
+static void photo_show_saved(int lcd_fd)
+{
+    int show = 0;
+    if (!photo_ready) return;
+    PrivMutexObtain(&photo_mutex);
+    if (photo_state == 4) { photo_state = 0; show = 1; }
+    PrivMutexAbandon(&photo_mutex);
+    if (!show) return;
+    uint16_t row[LCD_SIZE];
+    LcdWriteParam p = {0};
+    p.type = LCD_DOT_TYPE;
+    p.pixel_info.pixel_color = row;
+    p.pixel_info.x_startpos = 0;
+    p.pixel_info.x_endpos = LCD_SIZE - 1;
+    for (int y = 0; y < PHOTO_FONT_H + 12; y++) {
+        for (int x = 0; x < LCD_SIZE; x++) {
+            int gx = x - (LCD_SIZE - PHOTO_FONT_W) / 2, gy = y - 6;
+            int ink = gx >= 0 && gx < PHOTO_FONT_W && gy >= 0 && gy < PHOTO_FONT_H &&
+                (photo_font[gy][gx / 8] & (0x80 >> (gx % 8)));
+            row[x] = ink ? 0xffff : 0x0000;
+        }
+        p.pixel_info.y_startpos = LCD_SIZE - PHOTO_FONT_H - 12 + y;
+        p.pixel_info.y_endpos = p.pixel_info.y_startpos;
+        PrivWrite(lcd_fd, &p, NULL_PARAMETER);
+    }
+    PrivTaskDelay(2000);
+    memset(row, 0, sizeof(row));
+    for (int y = LCD_SIZE - PHOTO_FONT_H - 12; y < LCD_SIZE; y++) {
+        p.pixel_info.y_startpos = p.pixel_info.y_endpos = y;
+        PrivWrite(lcd_fd, &p, NULL_PARAMETER);
+    }
+    printf("\n[photo] saved toast complete\n");
+}
+#else
+#define photo_init() ((void)0)
+#define photo_send_frame() ((void)0)
+#define photo_show_saved(fd) ((void)0)
+#endif
+#endif

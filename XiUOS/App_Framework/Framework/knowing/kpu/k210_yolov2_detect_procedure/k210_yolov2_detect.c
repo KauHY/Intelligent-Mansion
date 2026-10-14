@@ -46,6 +46,8 @@ static uint32_t model_crc32(const unsigned char *data, size_t length)
     return crc ^ 0xffffffffU;
 }
 
+#include "photo_bridge.h"
+
 /* Release buffers only before capture begins. */
 static void release_startup_resources(void)
 {
@@ -332,6 +334,7 @@ static void *thread_detect_entry(void *parameter)
     camera_cfg.ioctl_driver_type = CAMERA_TYPE;
 
     printf("thread_detect_entry start!\n");
+    photo_init();
     int ret = 0;
     while (1)
     {
@@ -389,6 +392,7 @@ static void *thread_detect_entry(void *parameter)
         detect_rl.input = (float*)(output_buffer.buffer);
 #endif
         region_layer_run(&detect_rl, &detect_info);
+        photo_send_frame();
         printf("detect_info.obj_number:%d\n", detect_info.obj_number);
         /* display result */
         for (int cnt = 0; cnt < detect_info.obj_number; cnt++)
@@ -422,6 +426,10 @@ static void *thread_detect_entry(void *parameter)
         }
 #endif
 
+#endif
+        photo_show_saved(lcd_fd);
+#ifdef ADD_XIZI_FEATURES
+        PrivTaskDelay(1); /* allow the lower-priority console command task to run */
 #endif
         if (1 == if_exit)
         {
