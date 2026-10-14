@@ -73,6 +73,52 @@ def main():
     assert sent == [b'photo_saved 123\r'], sent
     print('PASS C firmware output -> Python receiver -> PNG -> matching ACK')
 
+    # Compile the actual create/bind/start helper with a deterministic API stub.
+    start = detector.index('static int start_detect_on_cpu0(')
+    stop = detector.index('\n#endif', start)
+    task_source = r'''
+    #include <assert.h>
+    #include <stdio.h>
+    #include <string.h>
+    #define STACK_SIZE (128 * 1024)
+    #define THREAD_PRIORITY_D 11
+    typedef long pthread_t;
+    typedef struct {char name[32]; void *func_entry; void *func_param; int stack_size; unsigned char prio;} UtaskType;
+    static pthread_t tid;
+    static int stage, fail_stage, deleted, test_parameter;
+    static void *thread_detect_entry(void *p) {return p;}
+    static int UserTaskCreate(UtaskType t) {
+        assert(stage++ == 0 && t.func_param == &test_parameter);
+        assert(t.stack_size == STACK_SIZE && t.prio == 11 && !strcmp(t.name,"face_det"));
+        return fail_stage == 1 ? -1 : 0; /* zero is a valid task ID */
+    }
+    static int UserTaskCoreCombine(int id, int core) {
+        assert(stage++ == 1 && id == 0 && core == 0);
+        return fail_stage == 2 ? -2 : 0;
+    }
+    static int UserTaskStartup(int id) {
+        assert(stage++ == 2 && id == 0);
+        return fail_stage == 3 ? -3 : 0;
+    }
+    static void UserTaskDelete(int id) {assert(id == 0);deleted++;}
+    ''' + detector[start:stop] + r'''
+    int main(void) {
+        for(fail_stage=0;fail_stage<=3;fail_stage++) {
+            stage=deleted=0;tid=-1;
+            int result=start_detect_on_cpu0(&test_parameter);
+            if(!fail_stage) {assert(result==0 && tid==0 && stage==3 && deleted==0);}
+            else {assert(result == -fail_stage && tid==-1 && stage==fail_stage);
+                  assert(deleted==(fail_stage>1));}
+        }
+        puts("PASS task start: CPU binding precedes startup; create/bind/start failures clean up correctly");
+        return 0;
+    }
+    '''
+    (out / 'task_start_test.c').write_text(task_source, encoding='utf-8')
+    subprocess.run([compiler, '-std=c99', '-Wall', '-Wextra', '-Werror',
+                    str(out / 'task_start_test.c'), '-o', str(out / 'task_start_test.exe')], check=True, env=env)
+    subprocess.run([str(out / 'task_start_test.exe')], check=True, env=env)
+
 
 if __name__ == '__main__':
     main()

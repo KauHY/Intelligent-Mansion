@@ -23,6 +23,36 @@ static unsigned char *kpurgbbuffer = NULL;
 static int image_width = IMAGE_WIDTH;
 static int image_height = IMAGE_HEIGHT;
 
+/* Create -> bind -> start is intentional: pthread_create starts immediately,
+ * and XiZi rejects binding an already-running task. Keep the camera/KPU worker
+ * on CPU0, where this board routes its peripheral interrupts. This avoids
+ * migration through the SMP delay/wakeup path; it is a mitigation pending
+ * hardware verification, not proof of the original exception's cause. */
+#if defined(ADD_XIZI_FEATURES) && defined(ARCH_SMP)
+static int start_detect_on_cpu0(void *parameter)
+{
+    UtaskType task = {0};
+    snprintf(task.name, sizeof(task.name), "face_det");
+    task.func_entry = thread_detect_entry;
+    task.func_param = parameter;
+    task.stack_size = STACK_SIZE;
+    task.prio = THREAD_PRIORITY_D;
+    int id = UserTaskCreate(task);
+    if (id < 0) return id;
+    int result = UserTaskCoreCombine(id, 0);
+    if (result == 0) {
+        printf("[photo v13] detector bound to CPU0 before startup\n");
+        result = UserTaskStartup(id);
+    }
+    if (result != 0) {
+        UserTaskDelete(id);
+        return result;
+    }
+    tid = (pthread_t)(long)id;
+    return 0;
+}
+#endif
+
 unsigned char *model_data = NULL; // kpu data  load memory
 unsigned char *model_data_align = NULL;
 
@@ -285,7 +315,11 @@ void k210_detect(char *json_file_path)
     pthread_attr_setstacksize(&attr, stack_size);
 
     /* 创建线程 1, 属性为 attr，入口函数是 thread_entry，入口函数参数是 1 */
+#if defined(ADD_XIZI_FEATURES) && defined(ARCH_SMP)
+    result = start_detect_on_cpu0(&detect_params);
+#else
     result = pthread_create(&tid, &attr, thread_detect_entry, &detect_params);
+#endif
     /* XiZi has no pthread_attr_destroy; its attributes own no resources. */
 #ifdef ADD_RTTHREAD_FEATURES
     pthread_attr_destroy(&attr);

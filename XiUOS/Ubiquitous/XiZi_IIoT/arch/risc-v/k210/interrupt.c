@@ -47,6 +47,8 @@ Modification:
 
 #define CPU_NUM         2
 
+#include "fatal_report.h"
+
 x_base DisableLocalInterrupt()
 {
     x_base level;
@@ -290,6 +292,7 @@ uintptr_t HandleTrap(uintptr_t mcause, uintptr_t epc, uintptr_t * sp)
             sp[0] += 4;
             ENABLE_INTERRUPT(temp);
         } else {
+            K210FatalReport(mcause, epc, sp);
             KPrintf("\nException:\n");
             tid = GetKTaskDescriptor();
             switch (cause) {
@@ -366,6 +369,7 @@ uintptr_t HandleTrap(uintptr_t mcause, uintptr_t epc, uintptr_t * sp)
         extern long ShowTask();
 
         DISABLE_INTERRUPT();
+        K210FatalReport(mcause, epc, sp);
         tid = GetKTaskDescriptor();
         KPrintf("\nException:\n");
         switch (cause) {
