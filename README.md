@@ -4,7 +4,13 @@
 
 ## ESP8285 Wi-Fi 图片采集（新增）
 
-按 [Wi-Fi 配置与虚拟机编译步骤](pc_bridge/WIFI_SETUP.md) 启用 `PHOTO_WIFI_TCP`、设置 UART1 TX=6/RX=7，并填写本地 `photo_wifi_config.h` 的 Wi-Fi 和 PC 地址，重新编译烧录。Windows 双击 **`Start-WiFi-Photo.cmd`** 启动接收端；照片保存在本项目 `tmp_photos/`。COM3 只需用于查看调试日志，Wi-Fi 模式无需运行串口 `bridge.py`。
+最新整图发送超时修复见 [v6 更新说明](pc_bridge/TIMEOUT_FIX.md)；分块发送与进度诊断见 [v5 更新说明](pc_bridge/SEND_FIX.md)。
+
+**v3 引脚更正：K210 UART1 应为 TX=7、RX=6。** 之前的 TX=6/RX=7 配置把 ESP8285 侧信号方向当成了 K210 侧，详见 [引脚修复说明](pc_bridge/PIN_FIX.md)。
+
+最新的 ESP8285 初始化诊断、波特率探测和模型内置方案见 [内置模型与 Wi-Fi 更新步骤](pc_bridge/UPDATE_BUILTIN_WIFI.md)。启用 `K210_MODEL_BUILTIN` 并关闭 `MOUNT_USB` 后，人脸检测不再依赖 U 盘。
+
+按 [Wi-Fi 配置与虚拟机编译步骤](pc_bridge/WIFI_SETUP.md) 启用 `PHOTO_WIFI_TCP`、设置 UART1 TX=7/RX=6，并填写本地 `photo_wifi_config.h` 的 Wi-Fi 和 PC 地址，重新编译烧录。Windows 双击 **`Start-WiFi-Photo.cmd`** 启动接收端；照片保存在本项目 `tmp_photos/`。COM3 只需用于查看调试日志，Wi-Fi 模式无需运行串口 `bridge.py`。
 
 新增功能已提供主机协议测试；RISC-V 完整编译及 ESP8285 实板联调仍需在你的环境完成。下文保留原串口模式的使用说明。
 

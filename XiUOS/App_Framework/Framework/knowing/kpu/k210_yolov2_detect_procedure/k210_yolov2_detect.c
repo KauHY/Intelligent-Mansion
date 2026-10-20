@@ -6,6 +6,9 @@
 #include <json_parser.h>
 #endif
 #include "region_layer.h"
+#ifdef K210_MODEL_BUILTIN
+#include "face_model.h"
+#endif
 #define STACK_SIZE (128 * 1024)
 #define THREAD_PRIORITY_D (11)
 
@@ -95,8 +98,10 @@ void k210_detect(char *json_file_path)
 {
     int ret = 0;
     int result = 0;
+#ifndef K210_MODEL_BUILTIN
     int size = 0;
     char kmodel_path[127] = {};
+#endif
 
     // open and parse from json file
     /* Persistent storage: the worker and region-layer anchors outlive this call. */
@@ -106,6 +111,15 @@ void k210_detect(char *json_file_path)
         printf("Detection already started; reset the board to restart.\n");
         return;
     }
+#ifdef K210_MODEL_BUILTIN
+    (void)json_file_path;
+    detect_params = face_model_params;
+    if (model_crc32(face_model, FACE_MODEL_SIZE) != FACE_MODEL_CRC32) {
+        printf("[builtin model] CRC failed; abort\n");
+        return;
+    }
+    printf("[builtin model] FACE bytes=%u CRC32=%08x\n", FACE_MODEL_SIZE, FACE_MODEL_CRC32);
+#else
     if (!json_file_path) return;
     size_t path_len = strlen(json_file_path);
     const char *suffix = strrchr(json_file_path, '.');
@@ -123,6 +137,7 @@ void k210_detect(char *json_file_path)
     snprintf(kmodel_path, sizeof(kmodel_path), "%.*s%s",
              (int)(suffix - json_file_path), json_file_path, model_suffix);
     detect_params = param_parse(json_file_path);
+#endif
     if (!detect_params.is_valid)
     {
         return;
@@ -156,6 +171,10 @@ void k210_detect(char *json_file_path)
     image_width = set_dvp_reso.width;
 
     // alloc the memory for camera and kpu running
+#ifdef K210_MODEL_BUILTIN
+    model_data = NULL; /* Never free static model storage. */
+    model_data_align = face_model;
+#else
     model_data = (unsigned char *)malloc(detect_params.kmodel_size + 255);
     if (NULL == model_data)
     {
@@ -163,6 +182,7 @@ void k210_detect(char *json_file_path)
         printf("model_data apply memory fail !!");
         return;
     }
+#endif
     showbuffer = (unsigned char *)malloc(detect_params.sensor_output_size[0] * detect_params.sensor_output_size[1] * 2);
     if (NULL == showbuffer)
     {
@@ -179,7 +199,9 @@ void k210_detect(char *json_file_path)
     }
 
 
+#ifndef K210_MODEL_BUILTIN
     memset(model_data, 0, detect_params.kmodel_size + 255);
+#endif
     memset(showbuffer, 0, detect_params.sensor_output_size[0] * detect_params.sensor_output_size[1] * 2);
     memset(kpurgbbuffer, 0, detect_params.net_input_size[0] * detect_params.net_input_size[1] * 3);
     shoot_para_t.pdata = (uintptr_t)(showbuffer);
@@ -188,6 +210,7 @@ void k210_detect(char *json_file_path)
     /*
         load memory
     */
+#ifndef K210_MODEL_BUILTIN
     // kmodel path generate from json file path, *.json -> *.kmodel
     printf("kmodel path: %s\n", kmodel_path);
     model_data_align = (unsigned char *)(((uintptr_t)model_data + 255) & ~(uintptr_t)255);
@@ -248,6 +271,7 @@ void k210_detect(char *json_file_path)
         }
     }
 
+#endif /* external model loading */
 #ifdef ADD_RTTHREAD_FEATURES
     dvp_set_ai_addr(
         (uintptr_t)(kpurgbbuffer +

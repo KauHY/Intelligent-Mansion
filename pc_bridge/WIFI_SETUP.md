@@ -1,5 +1,7 @@
 # ESP8285 TCP 人像采集：Windows 与虚拟机操作
 
+引脚方向已按同板 `Nuttx_Fusion_XiUOS/aiit_board/edu-riscv64/src/k210_bringup.c` 交叉映射核对：IO6 是 ESP TX，接 K210 RX；IO7 是 ESP RX，接 K210 TX。旧包使用者先阅读 [PIN_FIX.md](PIN_FIX.md)。
+
 本版本新增可选 `PHOTO_WIFI_TCP`，保留已有 CPU0 启动修复。默认不开启，以免改变现有串口固件行为。完成以下配置后必须重新编译、烧录一次；以后正常启动无需再次烧录。
 
 流程：检测到目标 → 使用当前摄像头帧（尚未画检测框）→ ESP8285 TCP 二进制上传 → Windows 校验 CRC32、保存 PNG → 回传对应图片 ID 和 CRC → LCD 底部显示“人像已完成采集”两秒。
@@ -89,8 +91,8 @@ make BOARD=edu-riscv64 menuconfig
 | 配置符号 | 设置 | 用途 |
 |---|---|---|
 | `BSP_USING_UART1` | `y` | ESP8285 独占 UART1 |
-| `BSP_UART1_TXD_PIN` | `6` | 板载 Wi-Fi UART 引脚，默认 19 需修改 |
-| `BSP_UART1_RXD_PIN` | `7` | 板载 Wi-Fi UART 引脚，默认 18 需修改 |
+| `BSP_UART1_TXD_PIN` | `7` | 板载 Wi-Fi UART 引脚，默认 19 需修改 |
+| `BSP_UART1_RXD_PIN` | `6` | 板载 Wi-Fi UART 引脚，默认 18 需修改 |
 | `SERIAL_1_DEVICE_NAME_0` | `uart1_dev1` | 程序打开 `/dev/uart1_dev1` |
 | `BSP_USING_GPIO` | `y` | 控制 IO8 Wi-Fi EN |
 | `BSP_USING_LCD` | `y` | 显示保存成功提示 |
@@ -109,7 +111,7 @@ COM3 使用的高速调试串口仍为 115200；U 盘使用的 UART3 保持原�
 grep -E 'CONFIG_(PHOTO_WIFI_TCP|BSP_USING_UART1|BSP_UART1_TXD_PIN|BSP_UART1_RXD_PIN|BSP_USING_GPIO|BSP_USING_LCD|ADAPTER_ESP8285_WIFI|SEPARATE_COMPILE)' .config
 ```
 
-应看到 `CONFIG_PHOTO_WIFI_TCP=y`、TX=6、RX=7 等；被关闭的选项也可能以 `# CONFIG_... is not set` 表示。
+应看到 `CONFIG_PHOTO_WIFI_TCP=y`、TX=7、RX=6 等；被关闭的选项也可能以 `# CONFIG_... is not set` 表示。
 
 ## 4. 编译、烧录、验收
 
@@ -148,7 +150,7 @@ Windows 对应显示 `[接收]`、`[保存成功]` 和实际 PNG 路径，随后
 | 图片上下颠倒 | PC 启动加 `--no-flip-y` |
 | 相邻像素错位或红蓝颠倒 | 根据实图分别测试 `--swap-pairs` 或 `--bgr` |
 
-传图有 90 秒阶段时限（单次 AT 等待最多再延迟 5 秒），PC 接收上限默认 120 秒，板端等待保存确认最多 10 秒。失败不提示成功，不循环重发；连续 10 帧无人后可重试。下一次尝试会在必要时通过 EN 复位模块，恢复 AT 命令状态，不执行恢复出厂设置。
+v6 板端发送阶段默认上限 300 秒，在每块开始前检查；已开始的块可能额外等待提示符 5 秒和 SEND OK 15 秒及 UART 写入时间。PC 整图接收上限默认 360 秒，单次无新数据等待最多 30 秒，板端等待保存确认最多 10 秒。可用 PHOTO_WIFI_FRAME_TIMEOUT_MS 覆盖板端阶段时限（毫秒）。失败不提示成功，不循环重发；连续 10 帧无人后可重试。下一次尝试会在必要时通过 EN 复位模块，恢复 AT 命令状态，不执行恢复出厂设置。
 
 ## 5. 跑通后提速
 
@@ -160,7 +162,7 @@ Windows 对应显示 `[接收]`、`[保存成功]` 和实际 PNG 路径，随后
 
 ## 协议与验证范围
 
-- 每张图片一个 TCP 连接，端口默认 9000；普通 `AT+CIPSEND` 定长发送，每块最多 1024 字节，不使用透传模式。
+- 每张图片一个 TCP 连接，端口默认 9000；普通 `AT+CIPSEND` 定长发送，每块默认最多 256 字节，UART 每 64 字节间隔 2ms，不使用透传模式。
 - 帧头 24 字节，网络字节序：`XPH1`、ID(uint32)、宽(uint16)、高(uint16)、字节数(uint32)、CRC32(uint32)、格式(uint32，1=RGB565LE)。像素负载保持 RGB565 **小端**，CRC 为标准 CRC32/ISO-HDLC，仅覆盖像素。
 - 成功确认 12 字节：`XPA1`、同一 ID(uint32)、同一 CRC32(uint32)，整数为网络字节序。失败关闭连接，不发成功确认。
 - PC 默认按现有 LCD 帧缓冲方向翻转行序保存 PNG。图片按原始分辨率保存，不含检测框。

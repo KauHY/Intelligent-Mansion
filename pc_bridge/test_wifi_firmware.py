@@ -25,6 +25,15 @@ exe = out / 'wifi_test.exe'
 subprocess.run([compiler, '-std=c99', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I'+str(out),
                 str(root / 'pc_bridge/wifi_firmware_test.c'), '-o', str(exe)], check=True, env=env)
 subprocess.run([str(exe), str(out / 'frame.bin')], check=True, env=env)
+# Wrong MCU direction must fail compilation, not silently yield rx=0 at runtime.
+wrong = (root / 'pc_bridge/wifi_firmware_test.c').read_text(encoding='utf-8')
+wrong = wrong.replace('#define BSP_UART1_TXD_PIN 7', '#define BSP_UART1_TXD_PIN 6')
+wrong = wrong.replace('#define BSP_UART1_RXD_PIN 6', '#define BSP_UART1_RXD_PIN 7')
+(out / 'wrong_pins.c').write_text(wrong, encoding='utf-8')
+rejected = subprocess.run([compiler, '-std=c99', '-fsyntax-only', '-I'+str(out),
+                           str(out / 'wrong_pins.c')], capture_output=True, env=env)
+assert rejected.returncode != 0 and b'K210 UART1 TX=7' in rejected.stderr
+print('PASS wrong TX=6/RX=7 configuration rejected at compile time')
 a,b = socket.socketpair()
 errors=[]
 def server():

@@ -19,16 +19,22 @@ def receive_exact(conn, size, deadline):
     while len(data) < size:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise TimeoutError('图片接收超时')
-        conn.settimeout(remaining)
-        block = conn.recv(min(4096, size - len(data)))
+            raise TimeoutError(f'图片接收超时：已收到 {len(data)}/{size} bytes')
+        conn.settimeout(min(remaining, 30))
+        try:
+            block = conn.recv(min(4096, size - len(data)))
+        except TimeoutError as exc:
+            raise TimeoutError(f'接收超时：已收到 {len(data)}/{size} bytes（单次等待最多30秒）') from exc
         if not block:
-            raise ConnectionError('图片尚未收完整，连接已断开')
+            raise ConnectionError(f'连接断开：已收到 {len(data)}/{size} bytes')
+        before = len(data)
         data.extend(block)
+        if size > HEADER.size and (len(data)//8192 != before//8192 or len(data)==size):
+            print(f'[接收进度] {len(data)}/{size} bytes', flush=True)
     return bytes(data)
 
 
-def receive_photo(conn, output, timeout=120, **options):
+def receive_photo(conn, output, timeout=360, **options):
     deadline = time.monotonic() + timeout
     magic, ident, width, height, size, crc, fmt = HEADER.unpack(receive_exact(conn, HEADER.size, deadline))
     if (magic != b'XPH1' or not ident or fmt != 1 or
@@ -68,7 +74,8 @@ def main():
     parser.add_argument('--host', default='0.0.0.0')
     parser.add_argument('--port', type=int, default=9000)
     parser.add_argument('--output', type=Path, default=ROOT / 'tmp_photos')
-    parser.add_argument('--timeout', type=float, default=120)
+    parser.add_argument('--timeout', type=float, default=360,
+                        help='整张图片接收时限（秒，默认360）；单次等待数据最多30秒')
     parser.add_argument('--no-flip-y', action='store_true')
     parser.add_argument('--swap-pairs', action='store_true')
     parser.add_argument('--bgr', action='store_true')
@@ -80,6 +87,7 @@ def main():
         listener.bind((args.host, args.port))
         listener.listen(4)
         print(f'[监听 TCP] {args.host}:{args.port}\n[图片目录] {args.output.resolve()}\nCtrl+C 退出', flush=True)
+        print(f'[接收时限] 整张图片 {args.timeout:g} 秒；单次等待数据最多30秒', flush=True)
         while True:
             conn, peer = listener.accept()
             with conn:

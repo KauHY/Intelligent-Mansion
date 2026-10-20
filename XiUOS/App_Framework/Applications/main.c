@@ -11,7 +11,10 @@ int main(void)
 #ifdef APPLICATION_OTA
     ApplicationOtaTaskInit();
 #endif
-#if defined(USING_K210_YOLOV2_DETECT) && defined(MOUNT_USB)
+#if defined(USING_K210_YOLOV2_DETECT) && defined(K210_MODEL_BUILTIN)
+    printf("[lab5.5] builtin FACE detection; USB not required\n");
+    k210_detect(NULL);
+#elif defined(USING_K210_YOLOV2_DETECT) && defined(MOUNT_USB)
     printf("[lab5.5] USB face detection: /FACE.JSN + /FACE.KMD\n");
     k210_detect("/FACE.JSN");
 #else

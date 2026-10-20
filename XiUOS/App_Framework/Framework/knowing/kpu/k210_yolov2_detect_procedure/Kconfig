@@ -14,7 +14,7 @@ config PHOTO_WIFI_TCP
     depends on !ADAPTER_ESP8285_WIFI
     default n
     help
-      Requires UART1 TX=6 RX=7 and local photo_wifi_config.h.
+      Requires UART1 TX=7 RX=6 and local photo_wifi_config.h.
       Owns UART1 and Wi-Fi EN pin 8. Do not run other Wi-Fi/UART1 tests.
       PC receiver: pc_bridge/tcp_bridge.py. Serial photo commands disabled.
 
@@ -27,3 +27,11 @@ config KPU_LCD_DEV_DRIVER
     default "/dev/lcd_dev"
 
 
+
+config K210_MODEL_BUILTIN
+    bool "Embed FACE model and parameters in firmware (no USB needed)"
+    depends on USING_K210_YOLOV2_DETECT && ADD_XIZI_FEATURES && !SEPARATE_COMPILE
+    default n
+    help
+      Includes 388776 bytes of aligned model data. No second heap copy.
+      Disable MOUNT_USB if no other application needs the USB disk.
