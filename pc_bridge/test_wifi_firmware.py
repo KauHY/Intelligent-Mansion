@@ -12,7 +12,7 @@ root = Path(__file__).resolve().parents[1]
 out = root / 'tmp/wifi_firmware_test'
 out.mkdir(parents=True, exist_ok=True)
 firmware = root / 'XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure'
-for name in ('photo_bridge.h', 'photo_wifi.h', 'photo_toast_font.h'):
+for name in ('photo_bridge.h', 'photo_wifi.h', 'photo_toast_font.h', 'photo_orientation.h'):
     shutil.copyfile(firmware / name, out / name)
 shutil.copyfile(firmware / 'photo_wifi_config.example.h', out / 'photo_wifi_config.h')
 (out / 'shell.h').write_text('#define SHELL_EXPORT_CMD(...)\n')

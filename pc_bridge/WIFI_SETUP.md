@@ -1,5 +1,9 @@
 # ESP8285 TCP 人像采集：Windows 与虚拟机操作
 
+当前 v8 针对中途 CLOSED 采用 115200 波特率、1024 字节分块做稳定性对照，见 [v8 更新说明](TRANSFER_CLOSED_V8.md)。以下旧版提速参数不作为本次测试设置。
+
+已有 v6 环境请先按 [v7 更新说明](PERFORMANCE_ORIENTATION.md) 替换摄像头处理和 LCD 驱动文件，并设置传输速率。以下保留首次配置步骤。
+
 引脚方向已按同板 `Nuttx_Fusion_XiUOS/aiit_board/edu-riscv64/src/k210_bringup.c` 交叉映射核对：IO6 是 ESP TX，接 K210 RX；IO7 是 ESP RX，接 K210 TX。旧包使用者先阅读 [PIN_FIX.md](PIN_FIX.md)。
 
 本版本新增可选 `PHOTO_WIFI_TCP`，保留已有 CPU0 启动修复。默认不开启，以免改变现有串口固件行为。完成以下配置后必须重新编译、烧录一次；以后正常启动无需再次烧录。
@@ -63,7 +67,7 @@ nano photo_wifi_config.h
 #define PHOTO_WIFI_PORT 9000
 ```
 
-保留初始设置：`PHOTO_WIFI_BOOT_BAUD=115200`、`PHOTO_WIFI_BAUD=115200`、`PHOTO_WIFI_ENABLE_PIN=8`、`PHOTO_WIFI_ABSENT_FRAMES=10`。名称或密码中的双引号、反斜杠需按 C 字符串写成 `\"`、`\\`；不要加入换行。
+v7 设置：`PHOTO_WIFI_BOOT_BAUD=115200`、`PHOTO_WIFI_BAUD=460800`、`PHOTO_WIFI_ENABLE_PIN=8`、`PHOTO_WIFI_ABSENT_FRAMES=10`。名称或密码中的双引号、反斜杠需按 C 字符串写成 `\"`、`\\`；不要加入换行。
 
 `photo_wifi_config.h` 已被 Git 忽略，但必须存在于实际编译树。首次不要使用示例 Wi-Fi 名称直接烧录。密码会编入固件，不要公开自己的配置头和固件。
 
@@ -156,13 +160,13 @@ v6 板端发送阶段默认上限 300 秒，在每块开始前检查；已开始
 
 320×240 RGB565 原始数据为 153600 字节。8N1 下，不含 AT/TCP 开销的串口传输时间：115200 约 **13.3 秒**，921600 约 **1.67 秒**。实际还需联网、分块响应、PC 存储和两秒提示；Wi-Fi 本身不能消除 K210→ESP8285 的 UART 瓶颈。
 
-先以 115200 完成验收，再将本地头文件的 `PHOTO_WIFI_BAUD` 改为 `921600` 并重新 clean/编译/烧录。保留 `PHOTO_WIFI_BOOT_BAUD=115200`，除非你已确认模块持久化上电波特率不是它。
+v7 示例使用 `PHOTO_WIFI_BAUD=460800`，已有私有头文件须手动修改。保留 `PHOTO_WIFI_BOOT_BAUD=115200`，除非你已确认模块持久化上电波特率不是它。先验证 460800 的成功率，不要直接跳到 921600。
 
 程序先以 BOOT_BAUD 联系模块，发送 `AT+UART_CUR` 后再修改 K210 UART。该更改不写入模块持久化波特率；COM3 和 KFlash 波特率不随之改变。高速不稳定时回退 460800 或 115200。最终速度和模块 AT 固件兼容性必须实板确认。
 
 ## 协议与验证范围
 
-- 每张图片一个 TCP 连接，端口默认 9000；普通 `AT+CIPSEND` 定长发送，每块默认最多 256 字节，UART 每 64 字节间隔 2ms，不使用透传模式。
+- 每张图片一个 TCP 连接，端口默认 9000；普通 `AT+CIPSEND` 定长发送，v7 每块默认最多 2048 字节，UART 每 64 字节间隔 2ms，不使用透传模式。
 - 帧头 24 字节，网络字节序：`XPH1`、ID(uint32)、宽(uint16)、高(uint16)、字节数(uint32)、CRC32(uint32)、格式(uint32，1=RGB565LE)。像素负载保持 RGB565 **小端**，CRC 为标准 CRC32/ISO-HDLC，仅覆盖像素。
 - 成功确认 12 字节：`XPA1`、同一 ID(uint32)、同一 CRC32(uint32)，整数为网络字节序。失败关闭连接，不发成功确认。
 - PC 默认按现有 LCD 帧缓冲方向翻转行序保存 PNG。图片按原始分辨率保存，不含检测框。

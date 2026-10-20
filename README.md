@@ -4,7 +4,7 @@
 
 ## ESP8285 Wi-Fi 图片采集（新增）
 
-最新整图发送超时修复见 [v6 更新说明](pc_bridge/TIMEOUT_FIX.md)；分块发送与进度诊断见 [v5 更新说明](pc_bridge/SEND_FIX.md)。
+最新传输中断对照修订见 [v8 更新说明](pc_bridge/TRANSFER_CLOSED_V8.md)；摄像头方向及 LCD 回退说明见 [v7 更新说明](pc_bridge/PERFORMANCE_ORIENTATION.md)。
 
 **v3 引脚更正：K210 UART1 应为 TX=7、RX=6。** 之前的 TX=6/RX=7 配置把 ESP8285 侧信号方向当成了 K210 侧，详见 [引脚修复说明](pc_bridge/PIN_FIX.md)。
 

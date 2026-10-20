@@ -16,6 +16,7 @@ ACK = struct.Struct('!4sII')
 
 def receive_exact(conn, size, deadline):
     data = bytearray()
+    started = last_data = time.monotonic()
     while len(data) < size:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
@@ -24,18 +25,25 @@ def receive_exact(conn, size, deadline):
         try:
             block = conn.recv(min(4096, size - len(data)))
         except TimeoutError as exc:
-            raise TimeoutError(f'接收超时：已收到 {len(data)}/{size} bytes（单次等待最多30秒）') from exc
+            now = time.monotonic()
+            reason = '整图时限耗尽' if now >= deadline else '连续无新数据'
+            raise TimeoutError(
+                f'接收超时：已收到 {len(data)}/{size} bytes；{reason}，'
+                f'本段耗时 {now-started:.2f}s，无新数据 {now-last_data:.2f}s'
+                '（单次等待最多30秒，PC 随后关闭连接）') from exc
         if not block:
             raise ConnectionError(f'连接断开：已收到 {len(data)}/{size} bytes')
         before = len(data)
         data.extend(block)
+        last_data = time.monotonic()
         if size > HEADER.size and (len(data)//8192 != before//8192 or len(data)==size):
             print(f'[接收进度] {len(data)}/{size} bytes', flush=True)
     return bytes(data)
 
 
 def receive_photo(conn, output, timeout=360, **options):
-    deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    deadline = started + timeout
     magic, ident, width, height, size, crc, fmt = HEADER.unpack(receive_exact(conn, HEADER.size, deadline))
     if (magic != b'XPH1' or not ident or fmt != 1 or
             not (0 < width <= 640 and width % 2 == 0 and 0 < height <= 480) or
@@ -59,6 +67,9 @@ def receive_photo(conn, output, timeout=360, **options):
     finally:
         partial.unlink(missing_ok=True)
     print(f'[保存成功] {path}', flush=True)
+    elapsed = time.monotonic() - started
+    print(f'[传输统计] {size} bytes，接收到保存耗时 {elapsed:.2f} 秒，'
+          f'平均 {size / max(elapsed, 0.001) / 1024:.2f} KiB/s', flush=True)
     conn.settimeout(5)
     conn.sendall(ACK.pack(b'XPA1', ident, crc))
     # Keep connection alive until board consumes ACK and closes; bounded wait.

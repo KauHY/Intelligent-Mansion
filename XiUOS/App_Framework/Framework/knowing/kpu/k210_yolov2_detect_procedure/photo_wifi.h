@@ -26,14 +26,15 @@ static int pw_closing;
 static int pw_joining, pw_join_code;
 static unsigned int pw_wire_offset;
 static int pw_block_received=-1;
+static int pw_terminal_failure;
 #ifndef PHOTO_WIFI_BLOCK_BYTES
-#define PHOTO_WIFI_BLOCK_BYTES 256
+#define PHOTO_WIFI_BLOCK_BYTES 1024
 #endif
 #ifndef PHOTO_WIFI_FRAME_TIMEOUT_MS
 #define PHOTO_WIFI_FRAME_TIMEOUT_MS 300000U
 #endif
-#if PHOTO_WIFI_BLOCK_BYTES < 64 || PHOTO_WIFI_BLOCK_BYTES > 1024
-#error "PHOTO_WIFI_BLOCK_BYTES must be 64..1024"
+#if PHOTO_WIFI_BLOCK_BYTES < 64 || PHOTO_WIFI_BLOCK_BYTES > 2048
+#error "PHOTO_WIFI_BLOCK_BYTES must be 64..2048"
 #endif
 
 static void pw_reset_parser(void)
@@ -84,6 +85,8 @@ static int pw_parse(unsigned char c)
             printf("[photo-wifi] AT final failure (%s)\n",
                    !strncmp(pw_line,"busy",4) ? "busy" : pw_line);
             event=PW_ERROR;
+            if (!strcmp(pw_line,"ERROR") || !strcmp(pw_line,"FAIL"))
+                pw_terminal_failure=1;
         }
         pw_line_len=0;
         return event;
@@ -143,6 +146,7 @@ static int pw_write(const void *data, size_t size)
 static int pw_command(const char *command, uint32_t timeout)
 {
     int result;
+    pw_terminal_failure=0;
     pw_joining=!strncmp(command,"AT+CWJAP=",9);
     if (pw_joining) pw_join_code=0;
     /* Never log the CWJAP command: it contains credentials. */
@@ -263,7 +267,19 @@ static int pw_connect(void)
         if (pw_command("AT+CWMODE=1",2000)) return -1;
         snprintf(command,sizeof(command),"AT+CWJAP=\"%s\",\"%s\"",ssid,password);
         printf("[photo-wifi] joining AP\n");
-        if (pw_command(command,30000) || pw_command("AT+CIPMUX=0",2000) ||
+        /* Retry only after a complete failure response. A host-side timeout
+         * may leave an AT command active: do not append another command then. */
+        int joined=0;
+        for (int attempt=0;attempt<3;attempt++) {
+            if (!pw_command(command,45000)) { joined=1; break; }
+            if (!pw_terminal_failure || pw_join_code==2 ||
+                (pw_join_code!=1 && pw_join_code!=3 && pw_join_code!=4)) break;
+            if (attempt<2) {
+                printf("[photo-wifi] join retry=%d/3 after terminal failure\n",attempt+2);
+                PrivTaskDelay(1000*(attempt+1));
+            }
+        }
+        if (!joined || pw_command("AT+CIPMUX=0",2000) ||
             pw_command("AT+CIPMODE=0",2000) || pw_command("AT+CIPDINFO=0",2000)) return -1;
         pw_online=1;
     }
@@ -313,9 +329,10 @@ static int pw_send(const unsigned char *data, size_t size)
         size-=n; data+=n; PrivTaskDelay(2);
         continue;
 block_fail:
-        printf("[photo-wifi] block offset=%u length=%u module_received=%d rx_delta=%u elapsed_ms=%u; not resent\n",
+        printf("[photo-wifi] block offset=%u length=%u module_received=%d rx_delta=%u elapsed_ms=%u frame_elapsed_ms=%u; not resent\n",
                pw_wire_offset,(unsigned)n,pw_block_received,pw_rx_bytes-rx_before,
-               (unsigned)(PrivGetTickTime()-start));
+               (unsigned)(PrivGetTickTime()-start),
+               (unsigned)(PrivGetTickTime()-pw_transfer_start));
         return -1;
     }
     return 0;
@@ -333,14 +350,15 @@ static int photo_wifi_transfer(unsigned int id, const unsigned char *pixels, int
     memcpy(expected,"XPA1",4); pw_u32(expected+4,id); pw_u32(expected+8,crc);
     pw_transfer_start=PrivGetTickTime();
     pw_wire_offset=0;
-    printf("[photo-wifi v6] block=%u UART burst=64 gap=2ms SEND_OK timeout=15s frame_limit_ms=%u\n",
+    printf("[photo-wifi v8] block=%u UART burst=64 gap=2ms SEND_OK timeout=15s frame_limit_ms=%u\n",
            (unsigned)PHOTO_WIFI_BLOCK_BYTES,(unsigned)PHOTO_WIFI_FRAME_TIMEOUT_MS);
     printf("[photo-wifi] sending id=%u bytes=%u crc=%08x\n",id,(unsigned)size,(unsigned)crc);
     if (pw_send(header,sizeof(header)) || pw_send(pixels,size)) goto fail;
     pw_stage="PC saved ACK";
     if (pw_ack_len!=sizeof(pw_ack) && pw_wait(0,10000)) goto fail;
     if (pw_payload || memcmp(pw_ack,expected,sizeof(expected))) goto fail;
-    printf("[photo-wifi] PC saved id=%u\n",id);
+    printf("[photo-wifi] PC saved id=%u transfer_ms=%u bytes=%u baud=%u\n",id,
+           (unsigned)(PrivGetTickTime()-pw_transfer_start),(unsigned)size,pw_actual_baud);
     /* PC may close after its ACK; close failure does not undo a valid save. */
     pw_closing=1;
     if (pw_command("AT+CIPCLOSE",2000)) pw_online=0;

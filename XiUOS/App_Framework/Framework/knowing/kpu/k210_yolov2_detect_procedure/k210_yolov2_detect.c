@@ -80,6 +80,7 @@ static uint32_t model_crc32(const unsigned char *data, size_t length)
 }
 
 #include "photo_bridge.h"
+#include "photo_orientation.h"
 
 /* Release buffers only before capture begins. */
 static void release_startup_resources(void)
@@ -393,6 +394,9 @@ static void *thread_detect_entry(void *parameter)
 
     printf("thread_detect_entry start!\n");
     photo_init();
+#ifdef ADD_XIZI_FEATURES
+    printf("[photo v7] camera rotate180=%d before KPU and capture\n", PHOTO_CAMERA_ROTATE_180);
+#endif
     int ret = 0;
     while (1)
     {
@@ -415,6 +419,13 @@ static void *thread_detect_entry(void *parameter)
         PrivIoctl(camera_fd, FLAG_CHECK, &camera_cfg);
         while (shoot_flag == 2)
             PrivIoctl(camera_fd, FLAG_CHECK, &camera_cfg);
+
+#ifdef ADD_XIZI_FEATURES
+        photo_orient_frame(showbuffer, kpurgbbuffer,
+                           detect_params.sensor_output_size[1],
+                           detect_params.sensor_output_size[0],
+                           (size_t)detect_params.net_input_size[0] * detect_params.net_input_size[1]);
+#endif
 
 #ifdef ADD_RTTHREAD_FEATURES
         if (dmalock_sync_take(&dma_ch, 2000))
