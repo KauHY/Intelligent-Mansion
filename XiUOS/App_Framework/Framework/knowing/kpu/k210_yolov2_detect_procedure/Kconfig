@@ -7,6 +7,17 @@ config KPU_DEV_DRIVER
     string "Set kpu dev path"
     default "/dev/kpu_dev"
 
+config PHOTO_WIFI_TCP
+    bool "Send face photos through onboard ESP8285 TCP (dedicated UART1)"
+    depends on USING_K210_YOLOV2_DETECT && ADD_XIZI_FEATURES && BOARD_EDU_RISCV64_EVB
+    depends on BSP_USING_LCD && BSP_USING_UART1 && BSP_USING_GPIO && !SEPARATE_COMPILE
+    depends on !ADAPTER_ESP8285_WIFI
+    default n
+    help
+      Requires UART1 TX=6 RX=7 and local photo_wifi_config.h.
+      Owns UART1 and Wi-Fi EN pin 8. Do not run other Wi-Fi/UART1 tests.
+      PC receiver: pc_bridge/tcp_bridge.py. Serial photo commands disabled.
+
 config CAMERA_DEV_DRIVER
     string "Set camera dev path for kpu"
     default "/dev/camera_dev"

@@ -10,9 +10,37 @@ static volatile int photo_ready;
 static unsigned int photo_id;
 /* 0 idle, 1 requested, 2 sending, 3 awaiting saved, 4 saved */
 static int photo_state;
+#ifdef PHOTO_WIFI_TCP
+#include "photo_wifi.h"
+static int photo_wifi_armed=1, photo_wifi_absent;
+#endif
+
+static void photo_on_detection(unsigned int count)
+{
+#ifdef PHOTO_WIFI_TCP
+    if (!photo_ready) return;
+    if (!count) {
+        if (photo_wifi_absent < PHOTO_WIFI_ABSENT_FRAMES) ++photo_wifi_absent;
+        if (photo_wifi_absent >= PHOTO_WIFI_ABSENT_FRAMES) photo_wifi_armed=1;
+    } else {
+        photo_wifi_absent=0;
+        if (photo_wifi_armed && photo_state==0) {
+            photo_wifi_armed=0;
+            if (++photo_id==0) ++photo_id;
+            photo_state=1;
+        }
+    }
+#else
+    (void)count;
+#endif
+}
 
 static void photo_command(int argc, char **argv, int saved)
 {
+#ifdef PHOTO_WIFI_TCP
+    (void)argc; (void)argv; (void)saved;
+    printf("[photo] TCP mode: serial photo commands disabled\n");
+#else
     char *end;
     unsigned long id;
     if (!photo_ready || argc != 2) return;
@@ -26,6 +54,7 @@ static void photo_command(int argc, char **argv, int saved)
         photo_state = 1;
     }
     PrivMutexAbandon(&photo_mutex);
+#endif
 }
 static int photo_capture(int argc, char **argv) { photo_command(argc, argv, 0); return 0; }
 static int photo_saved(int argc, char **argv) { photo_command(argc, argv, 1); return 0; }
@@ -38,6 +67,9 @@ static void photo_init(void)
 {
     if (PrivMutexCreate(&photo_mutex, NULL) == 0) photo_ready = 1;
     else printf("[photo] mutex initialization failed\n");
+#ifdef PHOTO_WIFI_TCP
+    printf("[photo-wifi] enabled; awaiting face; UART1 dedicated to ESP8285\n");
+#endif
 }
 
 /* Called after camera/KPU completion and BEFORE detection boxes are painted.
@@ -50,6 +82,12 @@ static void photo_send_frame(void)
     if (photo_state == 1) { id = photo_id; photo_state = 2; }
     PrivMutexAbandon(&photo_mutex);
     if (!id) return;
+#ifdef PHOTO_WIFI_TCP
+    int result=photo_wifi_transfer(id,showbuffer,image_width,image_height);
+    PrivMutexObtain(&photo_mutex);
+    photo_state=result==0 ? 4 : 0;
+    PrivMutexAbandon(&photo_mutex);
+#else
     size_t size = (size_t)image_width * image_height * 2;
     printf("\n@PHOTO BEGIN %u %d %d %u RGB565LE %08x\n", id,
            image_width, image_height, (unsigned int)size,
@@ -73,6 +111,7 @@ static void photo_send_frame(void)
     PrivMutexAbandon(&photo_mutex);
     printf("\n@PHOTO END %u\n", id);
     fflush(stdout);
+#endif
 }
 
 /* Rendering stays in the LCD owner's thread. Bitmap includes only the exact
@@ -112,6 +151,7 @@ static void photo_show_saved(int lcd_fd)
 }
 #else
 #define photo_init() ((void)0)
+#define photo_on_detection(count) ((void)0)
 #define photo_send_frame() ((void)0)
 #define photo_show_saved(fd) ((void)0)
 #endif

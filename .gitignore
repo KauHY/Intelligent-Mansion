@@ -3,3 +3,4 @@
 /tmp_photos/*
 /.venv/
 __pycache__/
+photo_wifi_config.h

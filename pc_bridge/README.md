@@ -1,5 +1,7 @@
 # XiUOS 人像采集串口接口
 
+新增无线采集使用 `tcp_bridge.py`，根目录双击 `Start-WiFi-Photo.cmd` 即可启动。板端配置、虚拟机 menuconfig 与编译步骤见 [WIFI_SETUP.md](WIFI_SETUP.md)。以下内容为原串口模式。
+
 本接口配合本仓库 `XiZi_IIoT` 的 **edu-riscv64 / K210** 固件使用。默认 PC 串口为 COM3，115200、8N1，无流控。只运行 PC 程序不能从旧固件的检测坐标还原照片，必须先编译并烧录下面的固件修改。
 
 ## 依据和实现

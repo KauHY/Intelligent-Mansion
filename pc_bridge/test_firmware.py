@@ -42,6 +42,7 @@ def main():
     int main(void) {
      char *capture[]={"photo_capture","123"}; char *wrong[]={"photo_saved","124"};
      photo_init(); assert(photo_ready);
+     photo_on_detection(1); assert(photo_state==0); /* serial mode is PC-triggered */
      photo_saved(2,capture); assert(photo_state==0);
      photo_capture(2,capture); assert(photo_state==1);
      photo_send_frame(); assert(photo_state==3);

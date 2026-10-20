@@ -426,6 +426,7 @@ static void *thread_detect_entry(void *parameter)
         detect_rl.input = (float*)(output_buffer.buffer);
 #endif
         region_layer_run(&detect_rl, &detect_info);
+        photo_on_detection(detect_info.obj_number);
         photo_send_frame();
         printf("detect_info.obj_number:%d\n", detect_info.obj_number);
         /* display result */

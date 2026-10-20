@@ -1,6 +1,12 @@
 # IntelligentMansion 智能楼宇人像采集项目
 
-本项目基于搭载 XiUOS / XiZi 的 RISC-V 开发板，使用 K210 运行 YOLOv2 人脸检测模型，并通过串口连接 Windows PC，实现人像照片接收与开发板 LCD 提示。
+本项目基于搭载 XiUOS / XiZi 的 RISC-V 开发板，使用 K210 运行 YOLOv2 人脸检测模型，支持串口或板载 ESP8285 TCP 上传照片至 Windows PC，并在保存确认后显示 LCD 提示。
+
+## ESP8285 Wi-Fi 图片采集（新增）
+
+按 [Wi-Fi 配置与虚拟机编译步骤](pc_bridge/WIFI_SETUP.md) 启用 `PHOTO_WIFI_TCP`、设置 UART1 TX=6/RX=7，并填写本地 `photo_wifi_config.h` 的 Wi-Fi 和 PC 地址，重新编译烧录。Windows 双击 **`Start-WiFi-Photo.cmd`** 启动接收端；照片保存在本项目 `tmp_photos/`。COM3 只需用于查看调试日志，Wi-Fi 模式无需运行串口 `bridge.py`。
+
+新增功能已提供主机协议测试；RISC-V 完整编译及 ESP8285 实板联调仍需在你的环境完成。下文保留原串口模式的使用说明。
 
 当前已完成开发板调试及 U 盘模型加载、运行。PC 人像采集接口和配套固件修改已实现并通过主机测试，完整固件编译及新增采集功能的实板联调尚待验证。
 
