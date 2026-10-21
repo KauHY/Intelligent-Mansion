@@ -10,22 +10,46 @@ static volatile int photo_ready;
 static unsigned int photo_id;
 /* 0 idle, 1 requested, 2 sending, 3 awaiting saved, 4 saved */
 static int photo_state;
-#ifdef PHOTO_WIFI_TCP
+#if defined(PHOTO_WIFI_TCP) && defined(PHOTO_ETHERNET_TCP)
+#error "Select only one photo network transport"
+#endif
+#ifdef PHOTO_ETHERNET_TCP
+#include "photo_ethernet.h"
+#elif defined(PHOTO_WIFI_TCP)
 #include "photo_wifi.h"
-static int photo_wifi_armed=1, photo_wifi_absent;
+#endif
+#if defined(PHOTO_WIFI_TCP) || defined(PHOTO_ETHERNET_TCP)
+#define PHOTO_NETWORK_TCP
+#ifndef PHOTO_FACE_CONFIRM_FRAMES
+#define PHOTO_FACE_CONFIRM_FRAMES 5
+#endif
+#ifndef PHOTO_FACE_ABSENT_FRAMES
+#ifdef PHOTO_WIFI_TCP
+#define PHOTO_FACE_ABSENT_FRAMES PHOTO_WIFI_ABSENT_FRAMES
+#else
+#define PHOTO_FACE_ABSENT_FRAMES 10
+#endif
+#endif
+#if PHOTO_FACE_CONFIRM_FRAMES < 1 || PHOTO_FACE_ABSENT_FRAMES < 1
+#error "Photo detection frame counts must be positive"
+#endif
+static unsigned int photo_present, photo_absent;
+static int photo_armed=1;
 #endif
 
 static void photo_on_detection(unsigned int count)
 {
-#ifdef PHOTO_WIFI_TCP
+#ifdef PHOTO_NETWORK_TCP
     if (!photo_ready) return;
     if (!count) {
-        if (photo_wifi_absent < PHOTO_WIFI_ABSENT_FRAMES) ++photo_wifi_absent;
-        if (photo_wifi_absent >= PHOTO_WIFI_ABSENT_FRAMES) photo_wifi_armed=1;
+        photo_present=0;
+        if (photo_absent < PHOTO_FACE_ABSENT_FRAMES) ++photo_absent;
+        if (photo_absent >= PHOTO_FACE_ABSENT_FRAMES) photo_armed=1;
     } else {
-        photo_wifi_absent=0;
-        if (photo_wifi_armed && photo_state==0) {
-            photo_wifi_armed=0;
+        photo_absent=0;
+        if (photo_present < PHOTO_FACE_CONFIRM_FRAMES) ++photo_present;
+        if (photo_present >= PHOTO_FACE_CONFIRM_FRAMES && photo_armed && photo_state==0) {
+            photo_armed=0;
             if (++photo_id==0) ++photo_id;
             photo_state=1;
         }
@@ -37,7 +61,7 @@ static void photo_on_detection(unsigned int count)
 
 static void photo_command(int argc, char **argv, int saved)
 {
-#ifdef PHOTO_WIFI_TCP
+#ifdef PHOTO_NETWORK_TCP
     (void)argc; (void)argv; (void)saved;
     printf("[photo] TCP mode: serial photo commands disabled\n");
 #else
@@ -67,7 +91,13 @@ static void photo_init(void)
 {
     if (PrivMutexCreate(&photo_mutex, NULL) == 0) photo_ready = 1;
     else printf("[photo] mutex initialization failed\n");
-#ifdef PHOTO_WIFI_TCP
+#ifdef PHOTO_NETWORK_TCP
+    printf("[photo] confirm=%u consecutive frames, rearm=%u absent frames\n",
+           (unsigned)PHOTO_FACE_CONFIRM_FRAMES, (unsigned)PHOTO_FACE_ABSENT_FRAMES);
+#endif
+#ifdef PHOTO_ETHERNET_TCP
+    printf("[photo-ethernet] W5500 TCP enabled\n");
+#elif defined(PHOTO_WIFI_TCP)
     printf("[photo-wifi] enabled; awaiting face; UART1 dedicated to ESP8285\n");
 #endif
 }
@@ -82,8 +112,12 @@ static void photo_send_frame(void)
     if (photo_state == 1) { id = photo_id; photo_state = 2; }
     PrivMutexAbandon(&photo_mutex);
     if (!id) return;
-#ifdef PHOTO_WIFI_TCP
+#ifdef PHOTO_NETWORK_TCP
+#ifdef PHOTO_ETHERNET_TCP
+    int result=photo_ethernet_transfer(id,showbuffer,image_width,image_height);
+#else
     int result=photo_wifi_transfer(id,showbuffer,image_width,image_height);
+#endif
     PrivMutexObtain(&photo_mutex);
     photo_state=result==0 ? 4 : 0;
     PrivMutexAbandon(&photo_mutex);

@@ -156,6 +156,9 @@ int main(int argc,char **argv) {
         send_calls=0;
         wire_len=0;qr=qw=0;pending=0;cmd_len=0;pw_online=0;
         for(int i=0;i<10;i++)photo_on_detection(0);
+        for(int i=0;i<PHOTO_FACE_CONFIRM_FRAMES-1;i++) {
+            photo_on_detection(1);assert(photo_state==0);
+        }
         photo_on_detection(1);assert(photo_state==1);
         photo_send_frame();assert(photo_state==(fault>=2 ? 0:4));
         if(!fault) assert((uint32_t)(ticks-pw_transfer_start)>120000);

@@ -2,6 +2,14 @@
 
 本项目基于搭载 XiUOS / XiZi 的 RISC-V 开发板，使用 K210 运行 YOLOv2 人脸检测模型，支持串口或板载 ESP8285 TCP 上传照片至 Windows PC，并在保存确认后显示 LCD 提示。
 
+## W5500 网线传输与连续人脸确认
+
+新增 `PHOTO_ETHERNET_TCP`，通过板载 W5500 网口发送图片。TCP 模式默认连续 **5 帧**检测到人脸后上传第 5 帧，中间无脸就重新计数；连续 **10 帧**无脸后允许下一次采集。两项帧数均可配置。这是多帧确认后上传一张照片，不会上传全部 5 帧，也不进行身份跟踪。
+
+先按 [有线网络配置与烧录说明](pc_bridge/ETHERNET_SETUP.md) 设置板端和电脑有线 IPv4，在原有可用 YOLO 配置中启用 W5500 和 `PHOTO_ETHERNET_TCP`、关闭 `PHOTO_WIFI_TCP`，重新编译烧录。Windows 双击 **`Start-Ethernet-Photo.cmd`** 启动接收，照片仍保存到 `tmp_photos/`。
+
+已通过以太网固件主机测试、C 数据包到 Python 接收器的 PNG/ACK 联动测试、原有 Wi-Fi 和串口固件回归测试，以及 16 项接收端测试。完整 RISC-V 编译、实板联调及实际速率尚待验证。以下 Wi-Fi/串口章节保留作为旧模式参考，TCP 触发条件以本节为准。
+
 ## ESP8285 Wi-Fi 图片采集（新增）
 
 最新传输中断对照修订见 [v8 更新说明](pc_bridge/TRANSFER_CLOSED_V8.md)；摄像头方向及 LCD 回退说明见 [v7 更新说明](pc_bridge/PERFORMANCE_ORIENTATION.md)。

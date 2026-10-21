@@ -39,7 +39,7 @@ wiz_NetInfo *get_gnetinfo() {
 }
 
 int network_init() {
-  wiz_NetInfo check_wiz_netinfo;
+  wiz_NetInfo check_wiz_netinfo = {0};
   check_wiz_netinfo.dhcp = NETINFO_STATIC;
   ctlnetwork(CN_SET_NETINFO, (void *)get_gnetinfo());
   ctlnetwork(CN_GET_NETINFO, (void *)&check_wiz_netinfo);
@@ -77,13 +77,18 @@ int network_init() {
 
 /****************** spi init ******************/
 static struct Bus *w5500_spi_bus;
+static int photo_wiznet_ready;
+int PhotoWiznetReady(void) { return photo_wiznet_ready; }
 int w5500_spi_init() {
   x_err_t ret = EOK;
 
   w5500_spi_bus = BusFind(SPI_BUS_NAME_1);
+  if (!w5500_spi_bus) return ERROR;
   w5500_spi_bus->owner_haldev =
       BusFindDevice(w5500_spi_bus, SPI_1_DEVICE_NAME_0);
   w5500_spi_bus->owner_driver = BusFindDriver(w5500_spi_bus, SPI_1_DRV_NAME);
+
+  if (!w5500_spi_bus->owner_haldev || !w5500_spi_bus->owner_driver) return ERROR;
 
   w5500_spi_bus->match(w5500_spi_bus->owner_driver,
                        w5500_spi_bus->owner_haldev);
@@ -246,6 +251,7 @@ int wiz_interrupt_init() {
 }
 
 int HwWiznetInit(void) {
+  photo_wiznet_ready = 0;
   wiz_reset();
 
   if (EOK != w5500_spi_init()) {
@@ -258,7 +264,8 @@ int HwWiznetInit(void) {
     return ERROR;
   }
 
-  network_init();
+  if (network_init() != EOK) return ERROR;
+  photo_wiznet_ready = 1;
 
   return EOK;
 }

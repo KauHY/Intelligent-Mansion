@@ -7,11 +7,34 @@ config KPU_DEV_DRIVER
     string "Set kpu dev path"
     default "/dev/kpu_dev"
 
+config PHOTO_ETHERNET_TCP
+    bool "Send face photos through wired W5500 TCP"
+    depends on USING_K210_YOLOV2_DETECT && ADD_XIZI_FEATURES && BOARD_EDU_RISCV64_EVB
+    depends on BSP_USING_LCD && !SEPARATE_COMPILE
+    depends on BSP_USING_WIZCHIP && BSP_USING_W5500 && BSP_USING_SPI1 && BSP_SPI1_USING_SS0
+    default y
+    help
+      Set static board/PC addresses in photo_ethernet_config.h before flashing.
+      Owns W5500 socket 2 and network settings; do not run network demos.
+      PC receiver: pc_bridge/tcp_bridge.py. Serial photo commands disabled.
+
+config PHOTO_FACE_CONFIRM_FRAMES
+    int "Consecutive face frames required before TCP upload"
+    depends on PHOTO_ETHERNET_TCP || PHOTO_WIFI_TCP
+    range 1 120
+    default 5
+
+config PHOTO_FACE_ABSENT_FRAMES
+    int "Consecutive absent frames required to rearm TCP upload"
+    depends on PHOTO_ETHERNET_TCP || PHOTO_WIFI_TCP
+    range 1 120
+    default 10
+
 config PHOTO_WIFI_TCP
     bool "Send face photos through onboard ESP8285 TCP (dedicated UART1)"
     depends on USING_K210_YOLOV2_DETECT && ADD_XIZI_FEATURES && BOARD_EDU_RISCV64_EVB
     depends on BSP_USING_LCD && BSP_USING_UART1 && BSP_USING_GPIO && !SEPARATE_COMPILE
-    depends on !ADAPTER_ESP8285_WIFI
+    depends on !ADAPTER_ESP8285_WIFI && !PHOTO_ETHERNET_TCP
     default n
     help
       Requires UART1 TX=7 RX=6 and local photo_wifi_config.h.

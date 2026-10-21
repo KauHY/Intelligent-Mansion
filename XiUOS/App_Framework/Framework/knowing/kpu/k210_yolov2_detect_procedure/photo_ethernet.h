@@ -1,0 +1,94 @@
+/* W5500 native TCP offload, owned exclusively by the detection worker.
+ * Uses the same XPH1 / XPA1 binary protocol as pc_bridge/tcp_bridge.py. */
+#ifndef PHOTO_ETHERNET_H
+#define PHOTO_ETHERNET_H
+#include "socket.h"
+#include "photo_ethernet_config.h"
+#if !defined(BSP_USING_W5500) || !defined(BSP_USING_SPI1) || !defined(BSP_SPI1_USING_SS0)
+#error "Ethernet photos require W5500, SPI1 and SPI1 SS0"
+#endif
+#if PHOTO_ETH_SOCKET < 0 || PHOTO_ETH_SOCKET > 7 || PHOTO_ETH_PORT < 1 || PHOTO_ETH_PORT > 65535
+#error "Invalid photo Ethernet socket or port"
+#endif
+extern int PhotoWiznetReady(void);
+
+static void pe_u32(unsigned char *p, uint32_t v)
+{
+    p[0]=v>>24; p[1]=v>>16; p[2]=v>>8; p[3]=v;
+}
+
+static int pe_expired(uint32_t start, uint32_t limit)
+{
+    return (uint32_t)(PrivGetTickTime()-start) >= limit;
+}
+
+static int pe_send(const unsigned char *data, size_t size, uint32_t start)
+{
+    while (size) {
+        if (pe_expired(start, PHOTO_ETH_FRAME_TIMEOUT_MS)) return -1;
+        /* Each hardware socket has a 2 KiB TX buffer. The driver may also
+         * accept fewer bytes or return SOCK_BUSY while SENDOK is pending. */
+        uint16_t n = size > 2048 ? 2048 : (uint16_t)size;
+        int32_t sent = wiz_sock_send(PHOTO_ETH_SOCKET, (uint8_t *)data, n);
+        if (sent < 0 || sent > n) return -1;
+        if (sent == SOCK_BUSY) { PrivTaskDelay(1); continue; }
+        data += sent;
+        size -= sent;
+    }
+    return 0;
+}
+
+static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
+                                   int width, int height)
+{
+    unsigned char header[24], expected[12], ack[12];
+    uint8_t peer[4] = PHOTO_ETH_PC;
+    wiz_NetInfo net = { .mac=PHOTO_ETH_MAC, .ip=PHOTO_ETH_IP,
+        .sn=PHOTO_ETH_NETMASK, .gw=PHOTO_ETH_GATEWAY, .dns={0,0,0,0},
+        .dhcp=NETINFO_STATIC };
+    size_t size = (size_t)width * height * 2, received = 0;
+    uint32_t crc = model_crc32(pixels, size), start;
+    const char *stage = "connect";
+    if (!PhotoWiznetReady()) {
+        printf("[photo-ethernet] W5500 initialization failed; no transfer\n");
+        return -1;
+    }
+    if (ctlnetwork(CN_SET_NETINFO, &net) < 0) return -1;
+    if (wiz_socket(PHOTO_ETH_SOCKET, Sn_MR_TCP, 0,
+                   SF_IO_NONBLOCK | SF_TCP_NODELAY) != PHOTO_ETH_SOCKET) goto fail;
+    start = PrivGetTickTime();
+    if (wiz_sock_connect(PHOTO_ETH_SOCKET, peer, PHOTO_ETH_PORT) < 0) goto fail;
+    while (getSn_SR(PHOTO_ETH_SOCKET) != SOCK_ESTABLISHED) {
+        if (getSn_SR(PHOTO_ETH_SOCKET) == SOCK_CLOSED ||
+            (getSn_IR(PHOTO_ETH_SOCKET) & Sn_IR_TIMEOUT) ||
+            pe_expired(start, PHOTO_ETH_CONNECT_TIMEOUT_MS)) goto fail;
+        PrivTaskDelay(1);
+    }
+    memcpy(header, "XPH1", 4); pe_u32(header+4, id);
+    header[8]=width>>8; header[9]=width; header[10]=height>>8; header[11]=height;
+    pe_u32(header+12, (uint32_t)size); pe_u32(header+16, crc); pe_u32(header+20, 1);
+    memcpy(expected, "XPA1", 4); pe_u32(expected+4, id); pe_u32(expected+8, crc);
+    stage = "send frame";
+    start = PrivGetTickTime();
+    if (pe_send(header, sizeof(header), start) || pe_send(pixels, size, start)) goto fail;
+    stage = "PC saved ACK";
+    start = PrivGetTickTime();
+    while (received < sizeof(ack)) {
+        if (pe_expired(start, PHOTO_ETH_ACK_TIMEOUT_MS)) goto fail;
+        int32_t n = wiz_sock_recv(PHOTO_ETH_SOCKET, ack+received,
+                                  (uint16_t)(sizeof(ack)-received));
+        if (n < 0 || n > (int32_t)(sizeof(ack)-received)) goto fail;
+        if (n == SOCK_BUSY) { PrivTaskDelay(1); continue; }
+        received += n;
+    }
+    if (memcmp(ack, expected, sizeof(ack))) goto fail;
+    /* ACK proves the last queued send reached the PC and was saved. */
+    wiz_sock_close(PHOTO_ETH_SOCKET);
+    printf("[photo-ethernet] PC saved id=%u bytes=%u\n", id, (unsigned)size);
+    return 0;
+fail:
+    wiz_sock_close(PHOTO_ETH_SOCKET);
+    printf("[photo-ethernet] failed stage=%s; no toast\n", stage);
+    return -1;
+}
+#endif
