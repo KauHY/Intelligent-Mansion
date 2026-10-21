@@ -1,80 +1,116 @@
-# XiUOS 人像采集串口接口
+# W5500 有线图像接收端
 
-新增无线采集使用 `tcp_bridge.py`，根目录双击 `Start-WiFi-Photo.cmd` 即可启动。板端配置、虚拟机 menuconfig 与编译步骤见 [WIFI_SETUP.md](WIFI_SETUP.md)。以下内容为原串口模式。
+本目录提供 edu-riscv64 / K210 开发板的 TCP 图像接收程序。当前项目采用 **网线传输、内置 FACE 模型、连续 5 帧人脸确认后上传一张照片**。
 
-本接口配合本仓库 `XiZi_IIoT` 的 **edu-riscv64 / K210** 固件使用。默认 PC 串口为 COM3，115200、8N1，无流控。只运行 PC 程序不能从旧固件的检测坐标还原照片，必须先编译并烧录下面的固件修改。
+完整的板端配置、编译烧录及网络设置见 [项目 README](../README.md)。电脑接收程序应运行在实际与开发板联网的 Windows 电脑上；编译虚拟机可以位于另一台电脑。
 
-## 依据和实现
+## 启动
 
-- `docs/06_矽璓操作系统实验-RISCV篇_20230829.docx` 第 5.5 节：`k210_detect`、摄像头采集、KPU 推断及 LCD 显示流程。
-- `docs/04_矽璓操作系统原理_20230828.pdf` 的线程同步、互斥量及设备访问说明。
-- 具体 API 和像素布局以当前仓库 `transform.h`、`connect_dvp.c`、`connect_lcd.c` 和 `k210_yolov2_detect.c` 核对；当前 `USB/FACE.JSN` 的图像为 320×240。
-
-流程：PC 收到 `detect_info.obj_number:大于0` → 发送 `photo_capture ID` → 检测线程在下一次处理到请求时发送完整摄像头帧（画检测框之前）→ PC 校验数据、写临时文件、flush/fsync、原子改名为 PNG → 发送 `photo_saved ID` → 同一个检测线程在 LCD 最底部显示“人像已完成采集”，等待 2000ms 后清除。
-
-使用已有的摄像头采集线程，避免两个线程争抢 DVP。获取的是触发后处理请求时的一帧，不保证与触发日志属于同一帧。串口请求由原有 shell 解析，没有另建串口读取线程。
-
-## 开发板安装
-
-修改集中在目录：
-
-`XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/`
-
-- `k210_yolov2_detect.c`：增加发送和显示挂接点，循环短暂让出 CPU 使 shell 能处理请求。
-- `photo_bridge.h`：串口命令、分块传输、互斥保护的确认状态和 LCD 弹窗。
-- `photo_toast_font.h`：中文提示位图，无需在板上安装中文字库。
-
-将以上三个文件同步到**你已成功编译 YOLO 的开发环境**。保留已经调通的配置，在 `XiUOS/Ubiquitous/XiZi_IIoT` 下执行：
-
-```sh
-make BOARD=edu-riscv64
-```
-
-使用既有 K-Flash 流程烧录生成的固件。启用 `ADD_XIZI_FEATURES`、`BSP_USING_LCD`、`TOOL_SHELL`、mutex/POSIX 支持及原有 YOLO/摄像头/KPU 配置。当前仓库的板级默认 `.config` 未启用 LCD，**不要用它覆盖已调通的配置**。本桥接代码仅为 XiZi + LCD 构建启用。
-
-启动后沿用现有 U 盘模型加载流程（`/FACE.JSN` 与 `/FACE.KMD`）。shell 命令列表应有 `photo_capture` 和 `photo_saved`。若自动模型加载期间已出现检测日志，直接启动 PC 接口即可。
-
-## PC 启动
-
-先关闭其他占用 COM3 的串口终端；Windows 上同一串口由本程序独占。本程序会继续打印检测日志。
-
-在项目根目录执行（Python 3.10+）：
+需要 Python 3.10+，TCP 接收端只使用标准库，无需安装额外依赖。在项目根目录双击 [Start-Ethernet-Photo.cmd](../Start-Ethernet-Photo.cmd)，或执行：
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r pc_bridge/requirements.txt
-.\.venv\Scripts\python.exe pc_bridge/bridge.py --port COM3 --baud 115200
+python -u pc_bridge/tcp_bridge.py --port 9000
 ```
 
-照片默认保存到本项目 `tmp_photos/portrait_日期_时间_请求ID_随机后缀.png`。默认目录由脚本位置确定，不受启动时工作目录影响。按 Ctrl+C 停止。串口被占用或断开会明确报错，处理连接后重新启动；程序不会自动烧录或重启开发板。
-
-默认持续有人时只采集一次；连续 10 个检测帧无目标后重新触发。可用 `--absent-frames 3` 改成 3 帧。此处仅按检测数量触发，适用于当前 face 模型，不是身份识别，也不区分画面中的不同人。
-
-参数：`--output 路径`、`--timeout 90`（一次请求总时限，秒）、`--no-flip-y`（取消与现有 LCD 行序一致的上下翻转）、`--swap-pairs`（交换相邻像素）、`--bgr`（交换红蓝）。默认按小端 RGB565 解码；需要用实拍和彩色物体验证当前硬件的方向和通道，按实际结果调整参数。
-
-## 协议及限制
-
-PC 命令以 CR 结尾，ID 为 1～2147483647 的十进制整数。开发板输出为 ASCII 文本，适合与原有日志共存：
-
-```text
-@PHOTO BEGIN ID WIDTH HEIGHT BYTES RGB565LE CRC32_HEX
-@PHOTO DATA ID BYTE_OFFSET HEX_DATA
-@PHOTO END ID
-```
-
-每块最多 64 字节；CRC32 为 CRC-32/ISO-HDLC。PC 检查请求 ID、尺寸、长度、顺序、CRC32；错误、超时或磁盘写入失败均不会发送 `photo_saved`。每次保存使用唯一文件名。开发板仅接受正在等待保存的相同 ID，忽略过期和重复确认。发送中不接受新采集；等待确认时允许后续新请求替代旧请求。
-
-320×240 RGB565 原图为 153600 字节。加上十六进制编码及记录头，115200 波特率理论传输约 34 秒，实际还受调度影响，默认总超时 90 秒。传图期间暂停下一帧采集，弹窗显示期间停留 2 秒。照片写好后才会弹窗；断线或 ACK 丢失可能导致照片已保存但没有弹窗，此时不会伪造成功提示。传输期间应避免其他任务大量输出串口日志；行内被日志打断会校验失败，不会保存损坏照片。
-
-失败后不会无限重试：需连续无目标后重新进入画面，或处理故障后重启 PC 接口。下一次请求可恢复开发板等待确认的状态。PC 超时应长于整张传输时间；若在传输中重启 PC，请先等待旧传输结束。
-
-## 验证
+如果当前位于 `pc_bridge/` 目录：
 
 ```powershell
-python -m unittest discover -s pc_bridge -v
-python pc_bridge/test_firmware.py "D:/Software Install/CodeBlocks/MinGW/bin/gcc.exe"
+python -u tcp_bridge.py --port 9000
 ```
 
-第一条覆盖碎片输入、重复/缺失块、校验错误、错误 ID、超时、保存失败、触发防抖及 PNG 像素顺序。第二条编译实际桥接头文件的主机测试，验证 ACK 状态、弹窗位置和两秒延时，并将 C 输出交给 Python 接收器保存 PNG。
+看到 `[监听 TCP] 0.0.0.0:9000` 后保持窗口打开，等待开发板连接。按 `Ctrl+C` 退出。照片默认保存到项目 `tmp_photos/`，文件名为 `face_日期_时间_图片ID_随机后缀.png`，默认目录不受启动位置影响。
 
-主机测试不能替代 RISC-V 完整固件编译和实板测试。本机没有可用的 WSL/RISC-V 构建环境，本次未烧录固件或验证真实 COM3 图像/LCD。实板验收：有人时保存一张可打开的照片，保存后底端中文显示两秒；持续有人不重复拍照；离开足够帧后再次进入能重新拍照；断线或保存失败时不显示成功提示。
+部署时保留启动脚本与 `pc_bridge/` 的相对位置，同时复制 `tcp_bridge.py` 和 `bridge.py`。后者提供共用的 RGB565 转 PNG 函数和项目路径，仍是 TCP 接收器的必要依赖。当前流程运行 `tcp_bridge.py`，无需启动 `bridge.py` 的历史串口入口，也不需要安装 `requirements.txt` 中用于串口的依赖。
+
+## 地址和参数
+
+默认电脑有线 IPv4 为 `192.168.50.1`，板端为 `192.168.50.2`，两端掩码为 `255.255.255.0`，端口为 `9000`。同网段直连无需网关或 DNS。板端目标地址由 [photo_ethernet_config.h](../XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_ethernet_config.h) 设置，修改后需重新编译烧录。
+
+| 参数 | 默认值及作用 |
+| --- | --- |
+| `--host` | `0.0.0.0`，监听本机所有 IPv4 接口；也可指定有线网卡 IP |
+| `--port` | `9000`，需与板端 `PHOTO_ETH_PORT` 相同 |
+| `--output` | 项目 `tmp_photos/`；指定相对路径时按当前工作目录解析 |
+| `--timeout` | 整张图接收时限 360 秒；单次等待新数据最多 30 秒 |
+| `--no-flip-y` | 关闭默认的上下翻转 |
+| `--swap-pairs` | 交换相邻两个像素的位置 |
+| `--bgr` | 交换红蓝通道 |
+
+```powershell
+python -u pc_bridge/tcp_bridge.py --host 192.168.50.1 --port 9000 --output ./tmp_photos
+```
+
+颜色和方向参数应根据实拍结果调整。接收端超时与板端超时独立：当前板端连接等待上限 10 秒、发送 30 秒、保存确认 10 秒；增大 PC 超时不会改变板端等待时间。
+
+连续帧数在板端 menuconfig 设置：`PHOTO_FACE_CONFIRM_FRAMES=5`、`PHOTO_FACE_ABSENT_FRAMES=10`。接收端没有 `--absent-frames` 参数。
+
+## 采集与保存确认
+
+1. 板端连续 5 个完成检测的帧都有目标时建立 TCP 连接，发送第 5 帧的完整 RGB565 图像；任何无脸帧都会中断连续计数。
+2. 电脑检查头部、尺寸、载荷长度和 CRC32，转换为 PNG。
+3. 先写 `.part` 临时文件，再执行 flush、fsync 和原子改名，之后回传图片 ID 和 CRC。
+4. 板端只有收到匹配确认才在 LCD 显示成功两秒。
+
+一次 TCP 连接传一张图，接收器依次处理连接。默认持续有人只尝试一次；成功或失败后都要连续 10 帧无脸才能重新允许采集。它不进行人员身份识别。连接、传输及提示期间，板端暂停下一帧检测。
+
+CRC、头部、接收或保存失败时不发送成功确认。若 PNG 已保存但 ACK 发送失败，文件仍保留，板端可能不显示成功；不能把电脑保存成功等同于板端已收到确认。
+
+## 二进制协议
+
+头部为 24 字节，Python 格式 `!4sIHHIII`，整数均为网络字节序：
+
+| 偏移 | 长度 | 含义 |
+| --- | --- | --- |
+| 0 | 4 | `XPH1` |
+| 4 | 4 | 非零图片 ID |
+| 8 | 2 | 宽度 |
+| 10 | 2 | 高度 |
+| 12 | 4 | 载荷字节数，等于宽 × 高 × 2 |
+| 16 | 4 | 原始载荷 CRC32 |
+| 20 | 4 | 像素格式，当前为 `1`（RGB565LE） |
+
+头部之后紧跟原始像素载荷，像素自身为小端 RGB565。当前 320×240 图像载荷为 153600 字节。接收端允许宽度为 1–640 中的偶数、高度为 1–480。
+
+成功确认是 12 字节，格式为 `!4sII`：`XPA1`、图片 ID、载荷 CRC32。TCP 可能拆分或合并数据，接收器按长度累计读取。
+
+## 连接检查
+
+串口终端仅用于板端日志，可与 TCP 接收端同时打开。启动接收端后，在**实际接收电脑**执行：
+
+```powershell
+ipconfig
+netstat -ano | findstr :9000
+ping -n 4 192.168.50.2
+arp -a
+```
+
+- 有线网卡 IP 应与板端 `target` 相同，端口应显示 `LISTENING`。
+- 板端至少尝试一次传图后再检查 ping/ARP，此时才应用配置中的地址。
+- 默认板端 MAC 为 `02-58-49-55-00-01`，在 `192.168.50.1` 接口下检查 ARP。ping 失败不能单独证明防火墙阻止连接。
+- 防火墙放行 TCP 9000 的精确规则见 [项目 README](../README.md)。
+
+| 日志或现象 | 含义与处理 |
+| --- | --- |
+| 没有监听提示 | 命令行启动以查看 Python、地址绑定或端口占用错误 |
+| 板端 `chip=0x04`、`link=UP` | 芯片版本及物理链路检查通过，尚不能证明 TCP 可达 |
+| `link=DOWN` | 检查网线、RJ45 及电脑网卡状态 |
+| `failed stage=connect` | 检查目标地址、ARP、监听和防火墙，保留 `reason/SR/IR` 日志 |
+| `rc=0`、`SR=0x13` | 非阻塞接口仍在处理，socket 为 INIT，不能当成连接成功 |
+| 有脸后短暂卡顿 | 当前连接等待在检测线程中，默认上限约 10 秒 |
+| 失败后不重试 | 离开至少 10 个检测帧后再进入，或复位开发板 |
+| 已保存但 LCD 未提示 | 检查保存确认及 LCD 配置 |
+
+## 测试和当前状态
+
+在项目根目录运行：
+
+```powershell
+python -m unittest discover -s pc_bridge -p "test_tcp_bridge.py" -v
+python pc_bridge/test_ethernet_firmware.py "D:/Software Install/CodeBlocks/MinGW/bin/gcc.exe"
+```
+
+GCC 路径按实际安装位置替换。第一条验证 TCP 分片接收、校验、保存失败、短载荷与超时；第二条编译真实固件头文件，模拟 W5500 API 并验证连续帧、短写、ACK、超时、链路检查和 C 数据包到 PNG/ACK 的联动。
+
+上述主机测试已通过。实板已经运行人脸检测和有线诊断，最近反馈为 `chip=0x04`、`link=UP`，但 TCP 连接超时；实板图片上传、LCD 成功提示和实际速率尚未验收。主机模拟吞吐量不能作为开发板速率。
+
+本目录其他历史模式脚本和阶段性记录不作为当前部署入口，当前流程以本说明和项目 README 为准。
