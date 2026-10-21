@@ -127,6 +127,26 @@ New-NetFirewallRule -DisplayName "XiUOS Photo TCP 9000" `
   -RemoteAddress 192.168.50.2 -Profile Any
 ```
 
+## PC 端人脸比对（可选）
+
+采集到照片后，可在电脑上判断两张图是否为同一人。使用 OpenCV DNN 的 YuNet 人脸检测和 SFace 特征比对，CPU 运行，不依赖开发板。
+
+安装依赖（一次即可）：
+
+```powershell
+python -m pip install -r face_match/requirements.txt
+```
+
+首次运行会自动从 OpenCV Zoo 下载模型到 `face_match/models/`，共约 39 MB。离线时可手动下载并放入该目录，文件名和地址见 [face_match/README.md](face_match/README.md)。
+
+```powershell
+python -m face_match tmp_photos\face_A.png tmp_photos\face_B.png
+```
+
+标准输出只有一行 `success` 或 `failed`；相似度、阈值、人脸数量和失败原因输出到标准错误。默认阈值为 0.363，可用 `--threshold` 修改。退出码：0 匹配，1 不匹配，2 参数、文件或模型错误。
+
+更多说明、阈值校准和 Python 调用方式见 [face_match/README.md](face_match/README.md)。
+
 ## 查看板端日志与检查连接
 
 串口用于调试日志和命令，可与网线接收程序同时使用。[Open-Board-Terminal.cmd](Open-Board-Terminal.cmd) 默认连接 COM3，115200 波特率、8N1；串口号不同则修改脚本。首次启动该终端脚本可能需要联网安装 pySerial。烧录时关闭占用同一串口的终端，烧录后重新打开并按 RESET 查看启动日志。
@@ -194,6 +214,7 @@ python -m unittest discover -s pc_bridge -p "test_tcp_bridge.py" -v
 | [Start-Ethernet-Photo.cmd](Start-Ethernet-Photo.cmd) | 启动电脑 TCP 图片接收端 |
 | [Open-Board-Terminal.cmd](Open-Board-Terminal.cmd) | 打开开发板调试终端 |
 | [pc_bridge/tcp_bridge.py](pc_bridge/tcp_bridge.py) | TCP 接收、校验、保存和确认 |
+| [face_match/](face_match/) | PC 端 YuNet + SFace 双图人脸比对 |
 | [photo_ethernet.h](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_ethernet.h) | 板端有线传输与连接诊断 |
 | [photo_bridge.h](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_bridge.h) | 连续帧触发及 LCD 保存提示 |
 | `tmp_photos/` | 接收的 PNG 照片 |
