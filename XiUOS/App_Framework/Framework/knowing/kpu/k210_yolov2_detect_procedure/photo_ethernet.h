@@ -47,23 +47,51 @@ static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
         .sn=PHOTO_ETH_NETMASK, .gw=PHOTO_ETH_GATEWAY, .dns={0,0,0,0},
         .dhcp=NETINFO_STATIC };
     size_t size = (size_t)width * height * 2, received = 0;
-    uint32_t crc = model_crc32(pixels, size), start;
-    const char *stage = "connect";
+    uint32_t crc = model_crc32(pixels, size), start = PrivGetTickTime();
+    const char *stage = "configure network", *reason = "operation failed";
+    int rc = 0;
     if (!PhotoWiznetReady()) {
         printf("[photo-ethernet] W5500 initialization failed; no transfer\n");
         return -1;
     }
-    if (ctlnetwork(CN_SET_NETINFO, &net) < 0) return -1;
-    if (wiz_socket(PHOTO_ETH_SOCKET, Sn_MR_TCP, 0,
-                   SF_IO_NONBLOCK | SF_TCP_NODELAY) != PHOTO_ETH_SOCKET) goto fail;
+    uint8_t version = getVERSIONR(), phy = getPHYCFGR();
+    printf("\n[photo-ethernet v2] id=%u chip=0x%02x PHY=0x%02x link=%s\n",
+           id, (unsigned)version, (unsigned)phy, (phy & PHYCFGR_LNK_ON) ? "UP" : "DOWN");
+    printf("[photo-ethernet] board=%u.%u.%u.%u mask=%u.%u.%u.%u gateway=%u.%u.%u.%u\n",
+           net.ip[0],net.ip[1],net.ip[2],net.ip[3],net.sn[0],net.sn[1],net.sn[2],net.sn[3],
+           net.gw[0],net.gw[1],net.gw[2],net.gw[3]);
+    printf("[photo-ethernet] target=%u.%u.%u.%u:%u socket=%u connect_limit_ms=%u\n",
+           peer[0],peer[1],peer[2],peer[3],(unsigned)PHOTO_ETH_PORT,
+           (unsigned)PHOTO_ETH_SOCKET,(unsigned)PHOTO_ETH_CONNECT_TIMEOUT_MS);
+    if (version != 0x04) {
+        printf("[photo-ethernet] invalid W5500 version; check SPI/power/reset; no transfer\n");
+        return -1;
+    }
+    if (!(phy & PHYCFGR_LNK_ON)) {
+        printf("[photo-ethernet] cable link DOWN; check RJ45/cable/peer port; no transfer\n");
+        return -1;
+    }
+    rc = ctlnetwork(CN_SET_NETINFO, &net);
+    if (rc < 0) {
+        printf("[photo-ethernet] network configuration failed rc=%d\n", rc);
+        return -1;
+    }
+    stage = "open socket";
+    rc = wiz_socket(PHOTO_ETH_SOCKET, Sn_MR_TCP, 0, SF_IO_NONBLOCK | SF_TCP_NODELAY);
+    if (rc != PHOTO_ETH_SOCKET) goto fail;
+    stage = "connect";
     start = PrivGetTickTime();
-    if (wiz_sock_connect(PHOTO_ETH_SOCKET, peer, PHOTO_ETH_PORT) < 0) goto fail;
+    rc = wiz_sock_connect(PHOTO_ETH_SOCKET, peer, PHOTO_ETH_PORT);
+    if (rc < 0) { reason = "connect API error"; goto fail; }
     while (getSn_SR(PHOTO_ETH_SOCKET) != SOCK_ESTABLISHED) {
-        if (getSn_SR(PHOTO_ETH_SOCKET) == SOCK_CLOSED ||
-            (getSn_IR(PHOTO_ETH_SOCKET) & Sn_IR_TIMEOUT) ||
-            pe_expired(start, PHOTO_ETH_CONNECT_TIMEOUT_MS)) goto fail;
+        if (!(getPHYCFGR() & PHYCFGR_LNK_ON)) { reason = "link lost"; goto fail; }
+        if (getSn_IR(PHOTO_ETH_SOCKET) & Sn_IR_TIMEOUT) { reason = "hardware timeout"; goto fail; }
+        if (getSn_SR(PHOTO_ETH_SOCKET) == SOCK_CLOSED) { reason = "socket closed"; goto fail; }
+        if (pe_expired(start, PHOTO_ETH_CONNECT_TIMEOUT_MS)) { reason = "connect deadline"; goto fail; }
         PrivTaskDelay(1);
     }
+    printf("[photo-ethernet] connected elapsed_ms=%u; sending %u bytes\n",
+           (unsigned)(PrivGetTickTime()-start),(unsigned)size);
     memcpy(header, "XPH1", 4); pe_u32(header+4, id);
     header[8]=width>>8; header[9]=width; header[10]=height>>8; header[11]=height;
     pe_u32(header+12, (uint32_t)size); pe_u32(header+16, crc); pe_u32(header+20, 1);
@@ -87,8 +115,12 @@ static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
     printf("[photo-ethernet] PC saved id=%u bytes=%u\n", id, (unsigned)size);
     return 0;
 fail:
+    /* Read evidence BEFORE close clears socket status and interrupts. */
+    printf("[photo-ethernet] failed stage=%s reason=%s rc=%d SR=0x%02x IR=0x%02x PHY=0x%02x elapsed_ms=%u; no toast\n",
+           stage,reason,rc,(unsigned)getSn_SR(PHOTO_ETH_SOCKET),
+           (unsigned)getSn_IR(PHOTO_ETH_SOCKET),(unsigned)getPHYCFGR(),
+           (unsigned)(PrivGetTickTime()-start));
     wiz_sock_close(PHOTO_ETH_SOCKET);
-    printf("[photo-ethernet] failed stage=%s; no toast\n", stage);
     return -1;
 }
 #endif

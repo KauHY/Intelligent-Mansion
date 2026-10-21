@@ -32,6 +32,8 @@ static int PrivWrite(int fd,LcdWriteParam *p,int n) {(void)fd;(void)p;(void)n;wr
 int PhotoWiznetReady(void) {return fault!=7;}
 int8_t ctlnetwork(ctlnetwork_type t,void *v) {(void)t;(void)v;return 0;}
 uint8_t WIZCHIP_READ(uint32_t addr) {
+    if(addr==VERSIONR) return fault==8 ? 0xff : 0x04;
+    if(addr==PHYCFGR) return fault==9 ? 0 : PHYCFGR_LNK_ON;
     if(addr==Sn_SR(PHOTO_ETH_SOCKET)) return fault==1 ? SOCK_INIT : SOCK_ESTABLISHED;
     return 0;
 }
@@ -67,14 +69,15 @@ int main(int argc,char **argv) {
     detect(PHOTO_FACE_CONFIRM_FRAMES-1,1);assert(photo_state==0);
     detect(1,0);detect(PHOTO_FACE_CONFIRM_FRAMES-1,1);assert(photo_state==0);
     /* Reset interrupted sequence before testing success/failure episodes. */
-    for(fault=0;fault<=7;fault++) {
+    for(fault=0;fault<=9;fault++) {
         detect(PHOTO_FACE_ABSENT_FRAMES,0);
         wire_len=ack_pos=0;calls=0;
         detect(PHOTO_FACE_CONFIRM_FRAMES-1,1);assert(photo_state==0);
         detect(1,1);assert(photo_state==1);
         int before=closes;
         photo_send_frame();assert(photo_state==(fault ? 0:4));
-        assert(closes==before+(fault==7 ? 0:1));
+        assert(closes==before+(fault>=7 ? 0:1));
+        if(fault>=7) assert(calls==0 && wire_len==0);
         photo_show_saved(1);assert(toast==1 && writes==80 && photo_state==0);
         detect(200,1);assert(photo_state==0); /* latch even after failed transfer */
         detect(PHOTO_FACE_ABSENT_FRAMES-1,0);detect(20,1);assert(photo_state==0);
