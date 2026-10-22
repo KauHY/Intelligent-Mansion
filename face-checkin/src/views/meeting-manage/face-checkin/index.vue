@@ -302,7 +302,9 @@ export default defineComponent({
     const loadPersonOptions = async () => {
       try {
         const { data } = await request({ url: `${PREFIX}/person/list`, method: 'GET', params: { pageNum: 1, pageSize: 100 } });
-        personOptions.value = (data?.list || []).map((item: any) => ({ value: item.id, label: item.personName || item.id }));
+        personOptions.value = (data?.list || [])
+          .filter((item: any) => item.status === 1 && item.auditStatus === 1)
+          .map((item: any) => ({ value: item.id, label: item.personName || item.id }));
       } catch {
         personOptions.value = [];
       }
@@ -319,7 +321,25 @@ export default defineComponent({
       const file = (event.target as HTMLInputElement).files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = () => { personForm.photoBase64 = reader.result as string; };
+      reader.onload = () => {
+        const image = new Image();
+        image.onload = () => {
+          const maxSize = 720;
+          const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(image.width * scale);
+          canvas.height = Math.round(image.height * scale);
+          const context = canvas.getContext('2d');
+          if (!context) {
+            personForm.photoBase64 = reader.result as string;
+            return;
+          }
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          personForm.photoBase64 = canvas.toDataURL('image/jpeg', 0.85);
+        };
+        image.onerror = () => { personForm.photoBase64 = reader.result as string; };
+        image.src = reader.result as string;
+      };
       reader.readAsDataURL(file);
     };
     const savePerson = async () => {
@@ -485,7 +505,7 @@ export default defineComponent({
         loadDeviceStatus();
         loadRequests();
         if (meetingReserveId.value) loadAttendance();
-      }, 5000);
+      }, 10000);
     };
     onMounted(() => { loadMeetings(); loadPersons(); loadPersonOptions(); loadRequests(); loadDeviceStatus(); startMonitor(); });
     onUnmounted(() => { if (monitorTimer) window.clearInterval(monitorTimer); });

@@ -299,7 +299,9 @@ export default defineComponent({
     const loadPersonOptions = async () => {
       try {
         const { data } = await request({ url: `${PREFIX}/person/list`, method: 'GET', params: { pageNum: 1, pageSize: 200 } });
-        personOptions.value = (data?.list || []).map((item: any) => ({
+        personOptions.value = (data?.list || [])
+          .filter((item: any) => item.status === 1 && item.auditStatus === 1)
+          .map((item: any) => ({
           value: item.id,
           label: `${item.personName || item.id}${item.employeeNo ? ` (${item.employeeNo})` : ''}`,
         }));
@@ -438,7 +440,7 @@ export default defineComponent({
         loadAttendance();
         loadRequests();
         if (debugVisible.value) loadLogs();
-      }, 5000);
+      }, 10000);
     };
 
     onMounted(loadDetail);
