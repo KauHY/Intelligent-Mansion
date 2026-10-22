@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -61,6 +62,8 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             "FACE_INFERENCE_EXTRACT_URL", INFERENCE_URL.replaceFirst("/match/?$", "/extract"));
     private static final String INFERENCE_MATCH_FEATURE_URL = System.getenv().getOrDefault(
             "FACE_INFERENCE_MATCH_FEATURE_URL", INFERENCE_URL.replaceFirst("/match/?$", "/match-feature"));
+    private static final String INFERENCE_BATCH_URL = System.getenv().getOrDefault(
+            "FACE_INFERENCE_BATCH_URL", INFERENCE_URL.replaceFirst("/match/?$", "/match-batch"));
 
     @Autowired
     private FaceCheckinAttendanceMapper attendanceMapper;
@@ -75,12 +78,11 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     private String expectedDeviceToken;
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public FaceCheckinResultVO verify(FaceCheckinVerifyDTO dto) {
         FaceCheckinResultVO result = new FaceCheckinResultVO();
         result.setRequestId(dto.getRequestId());
         result.setMeetingReserveId(dto.getMeetingReserveId());
-        MeetingReserve verifyMeeting = meetingReserveService.getById(dto.getMeetingReserveId());
+        MeetingReserve verifyMeeting = getActiveMeeting(dto.getMeetingReserveId());
         if (verifyMeeting != null) { result.setMeetingSubject(verifyMeeting.getMeetingSubject()); }
         try {
             if (StringUtils.isBlank(dto.getDeviceToken()) || !expectedDeviceToken.equals(dto.getDeviceToken())) {
@@ -268,22 +270,9 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 new LambdaQueryWrapper<FaceCheckinAttendance>()
                         .eq(FaceCheckinAttendance::getMeetingReserveId, meetingReserveId)
                         .eq(FaceCheckinAttendance::getParticipantCategory, CATEGORY_UNREGISTERED));
-        FaceCheckinAttendance bestEvent = null;
-        double bestSimilarity = 0.0;
-        for (FaceCheckinAttendance event : events) {
-            if (StringUtils.isBlank(event.getPhotoPath())) {
-                continue;
-            }
-            if (photoBase64.equals(event.getPhotoPath())) {
-                return event;
-            }
-            double similarity = callInferenceService(photoBase64, event.getPhotoPath());
-            if (similarity > bestSimilarity) {
-                bestSimilarity = similarity;
-                bestEvent = event;
-            }
-        }
-        return bestEvent != null && bestSimilarity >= MATCH_THRESHOLD ? bestEvent : null;
+        List<String> templates = events.stream().map(FaceCheckinAttendance::getPhotoPath).collect(Collectors.toList());
+        int bestIndex = callInferenceBatchService(photoBase64, templates);
+        return bestIndex >= 0 && bestIndex < events.size() ? events.get(bestIndex) : null;
     }
 
     private void saveUnregisteredAttendanceEvent(String meetingReserveId, String requestId, String deviceId, String photoBase64) {
@@ -335,26 +324,40 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (persons.isEmpty()) {
             return null;
         }
-        FaceCheckinPerson bestMatch = null;
-        double bestSimilarity = 0.0;
-        for (FaceCheckinPerson person : persons) {
-            if (StringUtils.isBlank(person.getFaceVector())) {
-                continue;
-            }
-            double similarity = comparePhotoToTemplate(photoBase64, person.getFaceVector());
-            log.info("Face candidate personId={} personName={} similarity={}",
-                    person.getId(), person.getPersonName(), similarity);
-            if (similarity > bestSimilarity) {
-                bestSimilarity = similarity;
-                bestMatch = person;
-            }
-        }
-        log.info("Face match summary candidates={} bestSimilarity={} matched={}",
-                persons.size(), bestSimilarity, bestMatch != null && bestSimilarity >= MATCH_THRESHOLD);
-        if (bestMatch != null && bestSimilarity >= MATCH_THRESHOLD) {
-            return bestMatch;
+        List<String> templates = persons.stream().map(FaceCheckinPerson::getFaceVector).collect(Collectors.toList());
+        int bestIndex = callInferenceBatchService(photoBase64, templates);
+        if (bestIndex >= 0 && bestIndex < persons.size()) {
+            return persons.get(bestIndex);
         }
         return null;
+    }
+
+    private int callInferenceBatchService(String photoBase64, List<String> templates) {
+        try {
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            Map<String, Object> body = new java.util.HashMap<>();
+            body.put("photoBase64", photoBase64);
+            body.put("templates", templates);
+            org.springframework.http.HttpEntity<Map<String, Object>> entity = new org.springframework.http.HttpEntity<>(body, headers);
+            org.springframework.http.ResponseEntity<Map> response = new org.springframework.web.client.RestTemplate()
+                    .postForEntity(INFERENCE_BATCH_URL, entity, Map.class);
+            Map<?, ?> result = response.getBody();
+            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
+                Object index = result.get("bestIndex");
+                Object similarity = result.get("bestSimilarity");
+                double bestSimilarity = similarity instanceof Number ? ((Number) similarity).doubleValue() : -1.0;
+                log.info("Face batch match candidates={} bestIndex={} bestSimilarity={}",
+                        templates.size(), index, bestSimilarity);
+                if (bestSimilarity >= MATCH_THRESHOLD && index instanceof Number) {
+                    return ((Number) index).intValue();
+                }
+            }
+            log.info("Face batch match rejected reason={}", result != null ? result.get("reason") : "empty");
+        } catch (Exception e) {
+            log.warn("Face inference batch call failed: {}", e.getMessage());
+        }
+        return -1;
     }
 
     private double comparePhotoToTemplate(String photoBase64, String faceVector) {
@@ -483,7 +486,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     }
 
     private boolean checkTimeWindow(String meetingReserveId) {
-        MeetingReserve reserve = meetingReserveService.getById(meetingReserveId);
+        MeetingReserve reserve = getActiveMeeting(meetingReserveId);
         if (reserve == null || reserve.getMeetingTimeStart() == null || reserve.getMeetingTimeEnd() == null) {
             return false;
         }
@@ -492,7 +495,6 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public Boolean savePerson(FaceCheckinPersonDTO dto) {
         FaceCheckinPerson person;
         if (StringUtils.isNotBlank(dto.getId())) {
@@ -528,6 +530,15 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (StringUtils.isNotBlank(keyword)) {
             wrapper.like(FaceCheckinPerson::getPersonName, keyword);
         }
+        wrapper.select(
+                FaceCheckinPerson::getId,
+                FaceCheckinPerson::getPersonName,
+                FaceCheckinPerson::getEmployeeNo,
+                FaceCheckinPerson::getPhone,
+                FaceCheckinPerson::getPersonType,
+                FaceCheckinPerson::getStatus,
+                FaceCheckinPerson::getAuditStatus,
+                FaceCheckinPerson::getCreateTime);
         List<FaceCheckinPerson> list = list(wrapper.orderByDesc(FaceCheckinPerson::getCreateTime));
         List<FaceCheckinPersonVO> vos = list.stream().map(this::toPersonVO).collect(Collectors.toList());
         return new PageInfo<>(vos);
@@ -535,7 +546,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
 
         @Override
     public String exportAttendanceCsv(String meetingReserveId) {
-        MeetingReserve meeting = meetingReserveService.getById(meetingReserveId);
+        MeetingReserve meeting = getActiveMeeting(meetingReserveId);
         List<FaceCheckinMeetingMember> members = memberMapper.selectList(
                 new LambdaQueryWrapper<FaceCheckinMeetingMember>()
                         .eq(FaceCheckinMeetingMember::getMeetingReserveId, meetingReserveId)
@@ -543,7 +554,24 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         List<FaceCheckinAttendance> events = attendanceMapper.selectList(
                 new LambdaQueryWrapper<FaceCheckinAttendance>()
                         .eq(FaceCheckinAttendance::getMeetingReserveId, meetingReserveId)
-                        .orderByAsc(FaceCheckinAttendance::getCheckinTime));
+                        .orderByAsc(FaceCheckinAttendance::getCheckinTime))
+                .stream()
+                .map(event -> {
+                    FaceCheckinAttendance light = new FaceCheckinAttendance();
+                    light.setId(event.getId());
+                    light.setMeetingReserveId(event.getMeetingReserveId());
+                    light.setPersonId(event.getPersonId());
+                    light.setPersonName(event.getPersonName());
+                    light.setCheckinTime(event.getCheckinTime());
+                    light.setStatus(event.getStatus());
+                    light.setRequestId(event.getRequestId());
+                    light.setDeviceId(event.getDeviceId());
+                    light.setRemark(event.getRemark());
+                    light.setParticipantCategory(event.getParticipantCategory());
+                    light.setCreateTime(event.getCreateTime());
+                    return light;
+                })
+                .collect(Collectors.toList());
         Map<String, FaceCheckinAttendance> attendanceByPerson = new java.util.LinkedHashMap<>();
         for (FaceCheckinAttendance event : events) {
             if (StringUtils.isBlank(event.getPersonId()) || attendanceByPerson.containsKey(event.getPersonId())) {
@@ -570,9 +598,18 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         java.util.Set<String> memberIds = members.stream()
                 .map(FaceCheckinMeetingMember::getPersonId)
                 .collect(Collectors.toSet());
+        List<String> exportPersonIds = java.util.stream.Stream.concat(
+                        members.stream().map(FaceCheckinMeetingMember::getPersonId),
+                        events.stream().map(FaceCheckinAttendance::getPersonId).filter(StringUtils::isNotBlank))
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, FaceCheckinPerson> exportPersonMap = exportPersonIds.isEmpty()
+                ? Collections.emptyMap()
+                : listByIds(exportPersonIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
         for (FaceCheckinMeetingMember member : members) {
             FaceCheckinAttendance attendance = attendanceByPerson.get(member.getPersonId());
-            FaceCheckinPerson person = getById(member.getPersonId());
+            FaceCheckinPerson person = exportPersonMap.get(member.getPersonId());
             appendCsvAttendanceRow(sb, meeting, person,
                     attendance != null ? attendance.getParticipantCategory() : CATEGORY_MEMBER,
                     attendance, checkedIn(attendance), late(attendance, meeting));
@@ -584,7 +621,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             if (!nonMember || StringUtils.isNotBlank(event.getPersonId()) && memberIds.contains(event.getPersonId())) {
                 continue;
             }
-            FaceCheckinPerson person = StringUtils.isNotBlank(event.getPersonId()) ? getById(event.getPersonId()) : null;
+            FaceCheckinPerson person = exportPersonMap.get(event.getPersonId());
             appendCsvAttendanceRow(sb, meeting, person, event.getParticipantCategory(), event, false, false);
         }
         return sb.toString();
@@ -650,7 +687,10 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
 
     private String csvText(String value) {
         if (StringUtils.isBlank(value)) { return ""; }
-        return csvEscape("=\"" + value + "\"");
+        if ("=+-@".indexOf(value.charAt(0)) >= 0) {
+            return csvEscape("'" + value);
+        }
+        return csvEscape(value);
     }
 
     @Override
@@ -676,12 +716,20 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 .stream()
                 .map(FaceCheckinAttendance::getPersonId)
                 .collect(Collectors.toList());
+        List<String> absentIds = members.stream()
+                .map(FaceCheckinMeetingMember::getPersonId)
+                .filter(personId -> !checkedInIds.contains(personId))
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, FaceCheckinPerson> absentPersonMap = absentIds.isEmpty()
+                ? Collections.emptyMap()
+                : listByIds(absentIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
         return members.stream()
                 .filter(m -> !checkedInIds.contains(m.getPersonId()))
                 .map(m -> {
                     FaceCheckinAbsentVO vo = new FaceCheckinAbsentVO();
                     vo.setPersonId(m.getPersonId());
-                    FaceCheckinPerson p = getById(m.getPersonId());
+                    FaceCheckinPerson p = absentPersonMap.get(m.getPersonId());
                     vo.setPersonName(p != null ? p.getPersonName() : "");
                     vo.setLeaveStatus(m.getLeaveStatus());
                     return vo;
@@ -696,6 +744,14 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                         .eq(StringUtils.isNotBlank(meetingReserveId), FaceCheckinRequest::getMeetingReserveId, meetingReserveId)
                         .orderByDesc(FaceCheckinRequest::getCreateTime)
                         .last("LIMIT 100"));
+        List<String> personIds = list.stream()
+                .map(FaceCheckinRequest::getPersonId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, FaceCheckinPerson> personMap = personIds.isEmpty()
+                ? Collections.emptyMap()
+                : listByIds(personIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
         return list.stream().map(request -> {
             FaceCheckinRequestVO vo = new FaceCheckinRequestVO();
             vo.setId(request.getId());
@@ -706,7 +762,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             vo.setStatus(request.getStatus());
             vo.setResult(request.getResult());
             vo.setPersonId(request.getPersonId());
-            FaceCheckinPerson requestPerson = StringUtils.isNotBlank(request.getPersonId()) ? getById(request.getPersonId()) : null;
+            FaceCheckinPerson requestPerson = personMap.get(request.getPersonId());
             vo.setPersonName(requestPerson != null ? requestPerson.getPersonName() : null);
             vo.setEmployeeNo(requestPerson != null ? requestPerson.getEmployeeNo() : null);
             vo.setPersonType(requestPerson != null ? requestPerson.getPersonType() : null);
@@ -718,6 +774,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     @Override
     public List<MeetingReserve> listMeetings() {
         return meetingReserveService.lambdaQuery()
+                .eq(MeetingReserve::getDeleted, false)
                 .orderByDesc(MeetingReserve::getMeetingTimeStart)
                 .last("LIMIT 100")
                 .list();
@@ -758,7 +815,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (StringUtils.isBlank(dto.getId())) {
             throw new IllegalArgumentException("会议ID不能为空");
         }
-        MeetingReserve meeting = meetingReserveService.getById(dto.getId());
+        MeetingReserve meeting = getActiveMeeting(dto.getId());
         if (meeting == null || Boolean.TRUE.equals(meeting.getDeleted())) {
             throw new IllegalArgumentException("会议不存在");
         }
@@ -786,7 +843,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean removeMeeting(String meetingId) {
-        MeetingReserve meeting = meetingReserveService.getById(meetingId);
+        MeetingReserve meeting = getActiveMeeting(meetingId);
         if (meeting == null || Boolean.TRUE.equals(meeting.getDeleted())) {
             throw new IllegalArgumentException("会议不存在");
         }
@@ -815,6 +872,16 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         return new LocalDateTime[]{attendanceStart, attendanceEnd};
     }
 
+    private MeetingReserve getActiveMeeting(String meetingReserveId) {
+        if (StringUtils.isBlank(meetingReserveId)) {
+            return null;
+        }
+        return meetingReserveService.lambdaQuery()
+                .eq(MeetingReserve::getId, meetingReserveId)
+                .eq(MeetingReserve::getDeleted, false)
+                .one();
+    }
+
     private LocalDateTime parseDateTime(String value, LocalDateTime fallback) {
         if (StringUtils.isBlank(value)) { return fallback; }
         return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -827,7 +894,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         vo.setEmployeeNo(person.getEmployeeNo());
         vo.setPhone(person.getPhone());
         vo.setPersonType(person.getPersonType());
-        vo.setPhotoUrl(person.getPhotoPath());
+
         vo.setStatus(person.getStatus());
         vo.setAuditStatus(person.getAuditStatus());
         vo.setCreateTime(person.getCreateTime());
@@ -837,18 +904,35 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean saveMembers(FaceCheckinMemberDTO dto) {
+        MeetingReserve meeting = getActiveMeeting(dto.getMeetingReserveId());
+        if (meeting == null) {
+            throw new IllegalArgumentException("会议不存在或已删除");
+        }
+        List<String> memberIds = normalizeMemberIds(dto.getPersonIds());
+        if (!memberIds.isEmpty()) {
+            Map<String, FaceCheckinPerson> personMap = listByIds(memberIds).stream()
+                    .collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+            List<String> invalidMemberIds = memberIds.stream()
+                    .filter(personId -> {
+                        FaceCheckinPerson person = personMap.get(personId);
+                        return person == null || person.getStatus() == null || person.getStatus() != 1
+                                || person.getAuditStatus() == null || person.getAuditStatus() != 1;
+                    })
+                    .collect(Collectors.toList());
+            if (!invalidMemberIds.isEmpty()) {
+                throw new IllegalArgumentException("仅允许添加已启用且审核通过的人员");
+            }
+        }
         memberMapper.delete(new LambdaQueryWrapper<FaceCheckinMeetingMember>()
                 .eq(FaceCheckinMeetingMember::getMeetingReserveId, dto.getMeetingReserveId()));
-        if (dto.getPersonIds() != null) {
-            for (String personId : dto.getPersonIds()) {
-                FaceCheckinMeetingMember member = new FaceCheckinMeetingMember();
-                member.setMeetingReserveId(dto.getMeetingReserveId());
-                member.setPersonId(personId);
-                member.setStatus(1);
-                member.setLeaveStatus(0);
-                member.setCreateTime(LocalDateTime.now());
-                memberMapper.insert(member);
-            }
+        for (String personId : memberIds) {
+            FaceCheckinMeetingMember member = new FaceCheckinMeetingMember();
+            member.setMeetingReserveId(dto.getMeetingReserveId());
+            member.setPersonId(personId);
+            member.setStatus(1);
+            member.setLeaveStatus(0);
+            member.setCreateTime(LocalDateTime.now());
+            memberMapper.insert(member);
         }
         return true;
     }
@@ -862,8 +946,15 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 new LambdaQueryWrapper<FaceCheckinMeetingMember>()
                         .eq(FaceCheckinMeetingMember::getMeetingReserveId, meetingReserveId)
                         .orderByAsc(FaceCheckinMeetingMember::getCreateTime));
-        return members.stream()
-                .map(member -> getById(member.getPersonId()))
+        List<String> personIds = members.stream()
+                .map(FaceCheckinMeetingMember::getPersonId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, FaceCheckinPerson> personMap = personIds.isEmpty()
+                ? Collections.emptyMap()
+                : listByIds(personIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+        return personIds.stream()
+                .map(personMap::get)
                 .filter(person -> person != null)
                 .map(this::toPersonVO)
                 .collect(Collectors.toList());
