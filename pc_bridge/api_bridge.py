@@ -58,30 +58,20 @@ def receive_photo(conn, timeout=60):
 def rgb565_to_jpeg_base64(raw, width, height, rotate_180=False):
     """Convert raw RGB565 to JPEG using Pillow; falls back to BMP if Pillow unavailable."""
     if rotate_180:
-        # Reverse 16-bit pixel order without swapping the two bytes in each RGB565 pixel.
-        reversed_pixels = bytearray(raw)
-        reversed_pixels[0::2] = raw[-2::-2]
-        reversed_pixels[1::2] = raw[-1::-2]
-        raw = bytes(reversed_pixels)
+        import numpy as np
+        raw = np.frombuffer(raw, dtype='<u2')[::-1].tobytes()
+
     try:
-        from PIL import Image
-        import io
-        pixels = []
-        for y in range(height):
-            row = []
-            for x in range(width):
-                offset = 2 * (y * width + x)
-                v = struct.unpack_from('<H', raw, offset)[0]
-                r = ((v >> 11) & 31) << 3
-                g = ((v >> 5) & 63) << 2
-                b = (v & 31) << 3
-                row.append((r, g, b))
-            pixels.append(row)
-        img = Image.new('RGB', (width, height))
-        img.putdata([p for row in pixels for p in row])
-        buf = io.BytesIO()
-        img.save(buf, format='JPEG', quality=85)
-        return base64.b64encode(buf.getvalue()).decode('ascii')
+        import cv2
+        import numpy as np
+        values = np.frombuffer(raw, dtype='<u2').reshape(height, width)
+        blue = ((values & 31) << 3).astype('uint8')
+        green = (((values >> 5) & 63) << 2).astype('uint8')
+        red = (((values >> 11) & 31) << 3).astype('uint8')
+        image = np.stack((blue, green, red), axis=-1)
+        success, encoded = cv2.imencode('.jpg', image, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
+        if success:
+            return base64.b64encode(encoded.tobytes()).decode('ascii')
     except ImportError:
         pass
 
@@ -194,7 +184,8 @@ def handle_client(conn, peer, api_base, device_id, meeting_reserve_id, device_to
         photo = receive_photo(conn)
         photo_b64 = rgb565_to_jpeg_base64(
             photo['raw'], photo['width'], photo['height'], rotate_180=rotate_180)
-        result = call_api(api_base, device_id, meeting_reserve_id, photo['id'], photo_b64, device_token)
+        request_id = f'{int(STATE["started_at"])}-{photo["id"]}'
+        result = call_api(api_base, device_id, meeting_reserve_id, request_id, photo_b64, device_token)
         log_identification(result)
         with STATE['lock']:
             STATE['received'] += 1
