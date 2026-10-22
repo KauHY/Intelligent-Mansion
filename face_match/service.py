@@ -15,9 +15,9 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 try:
-    from face_match import encode_feature, extract_face_feature, match_faces, match_photo_to_feature, FaceMatchError
+    from face_match import _load_models, decode_feature, encode_feature, extract_face_feature, match_feature, match_faces, match_photo_to_feature, FaceMatchError
 except ImportError:
-    from matcher import encode_feature, extract_face_feature, match_faces, match_photo_to_feature, FaceMatchError
+    from matcher import _load_models, decode_feature, encode_feature, extract_face_feature, match_feature, match_faces, match_photo_to_feature, FaceMatchError
 
 PORT = 8901
 MODEL_DIR = Path(__file__).resolve().parent / "models"
@@ -37,12 +37,14 @@ def log_result(stage: str, result: dict) -> None:
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
-            self._respond({"status": "ok", "endpoints": ["/match", "/extract", "/match-feature"]})
+            self._respond({"status": "ok", "endpoints": ["/match", "/extract", "/match-feature", "/match-batch"]})
             return
         self.send_error(404)
 
     def do_POST(self):
-        if self.path not in ("/match", "/extract", "/match-feature"):
+        photo_path = None
+        template_path = None
+        if self.path not in ("/match", "/extract", "/match-feature", "/match-batch"):
             self.send_error(404)
             return
         try:
@@ -52,6 +54,14 @@ class Handler(BaseHTTPRequestHandler):
             template_b64 = body.get("templateBase64", "")
             if self.path == "/match-feature":
                 template_b64 = body.get("templateFeatureBase64", template_b64)
+            if self.path == "/match-batch":
+                templates = body.get("templates")
+                if not isinstance(templates, list):
+                    self._respond({"success": False, "similarity": None, "reason": "templates must be a list"})
+                    return
+                if not templates:
+                    self._respond({"success": False, "similarity": None, "reason": "no face candidates"})
+                    return
             if not photo_b64 or (self.path != "/extract" and not template_b64):
                 self._respond({"success": False, "similarity": None, "reason": "missing image data"})
                 return
@@ -81,6 +91,44 @@ class Handler(BaseHTTPRequestHandler):
                 log_result("match-feature", response)
                 self._respond(response)
                 return
+            if self.path == "/match-batch":
+                feature_result = extract_face_feature(
+                    photo_path, model_dir=MODEL_DIR, allow_download=False, require_single_face=False
+                )
+                similarities = []
+                best_index = None
+                best_similarity = -1.0
+                if feature_result.success:
+                    _, recognizer = _load_models(MODEL_DIR, allow_download=False)
+                    for template in templates:
+                        similarity = -1.0
+                        try:
+                            if template.startswith("data:image/"):
+                                template_path = self._decode(template, "template")
+                                template_result = extract_face_feature(
+                                    template_path, model_dir=MODEL_DIR, allow_download=False
+                                )
+                                if template_result.success:
+                                    similarity = match_feature(recognizer, feature_result.feature, template_result.feature)
+                            elif template:
+                                similarity = match_feature(recognizer, feature_result.feature, decode_feature(template))
+                        except Exception:
+                            similarity = -1.0
+                        similarities.append(similarity)
+                        if similarity > best_similarity:
+                            best_similarity = similarity
+                            best_index = len(similarities) - 1
+                response = {
+                    "success": feature_result.success,
+                    "reason": feature_result.reason,
+                    "faceCount": feature_result.face_count,
+                    "similarities": similarities,
+                    "bestIndex": best_index,
+                    "bestSimilarity": None if best_similarity < 0 else best_similarity,
+                }
+                log_result("match-batch", response)
+                self._respond(response)
+                return
             template_path = self._decode(template_b64, "template")
             result = match_faces(photo_path, template_path, model_dir=MODEL_DIR, allow_download=False)
             response = {
@@ -97,6 +145,11 @@ class Handler(BaseHTTPRequestHandler):
             self._respond({"success": False, "similarity": None, "reason": str(exc)}, status=500)
         except Exception as exc:
             self._respond({"success": False, "similarity": None, "reason": f"internal: {exc}"}, status=500)
+        finally:
+            if photo_path:
+                Path(photo_path).unlink(missing_ok=True)
+            if template_path:
+                Path(template_path).unlink(missing_ok=True)
 
     def _decode(self, data: str, name: str) -> str:
         """Strip data URI prefix, decode base64, save to temp file."""
