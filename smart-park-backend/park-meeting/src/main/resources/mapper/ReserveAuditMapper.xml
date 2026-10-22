@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.meeting.mapper.ReserveAuditMapper">
+    <update id="autoCancelReserve">
+        UPDATE mee_reserve_audit
+        SET meeting_state = 1,
+        meeting_status = 6,
+        meeting_cancel_time = SYSDATE( )
+        WHERE
+        deleted = 0
+        AND meeting_status = 1
+        AND unix_timestamp( concat( now_date, ' ', end_time, ':00' ) ) &lt;= unix_timestamp(SYSDATE())
+    </update>
+
+    <select id="listPage" resultType="com.crlink.smartpark.meeting.dto.ReserveAuditDTO">
+        SELECT
+        a.employee_id,
+        a.meeting_reserve_id,
+        a.meeting_subject,
+        a.meeting_id,
+        m.meeting_name,
+        m.capacity,
+        m.meeting_equipment,
+        a.now_date,
+        a.start_time,
+        a.end_time,
+        a.meeting_status
+        from mee_reserve_audit a
+        LEFT JOIN mee_meeting_manage m ON a.meeting_id = m.id
+        <where>
+            and a.deleted=0
+            and a.employee_id = #{param.employeeId}
+            <if test="param.nowDate !=null and param.nowDate !=''">
+                and a.now_date=#{param.nowDate}
+            </if>
+            <if test="param.meetingState !=null and param.meetingState !=''">
+                and a.meeting_state=#{param.meetingState}
+            </if>
+            <if test="param.meetingStatus !=null and param.meetingStatus !=''">
+                and a.meeting_status=#{param.meetingStatus}
+            </if>
+            <if test="param.auditStatus !=null and param.auditStatus !=''">
+                and a.audit_status=#{param.auditStatus}
+            </if>
+            order by a.create_time desc,a.start_time desc
+        </where>
+    </select>
+    <select id="listAuditPage" resultType="com.crlink.smartpark.meeting.dto.ReserveAuditDTO">
+        SELECT
+        a.employee_id,
+        a.meeting_reserve_id,
+        a.meeting_subject,
+        a.meeting_id,
+        m.meeting_name,
+        m.capacity,
+        m.meeting_equipment,
+        a.now_date,
+        a.start_time,
+        a.end_time,
+        a.meeting_status
+        from mee_reserve_audit a
+        LEFT JOIN mee_meeting_manage m ON a.meeting_id = m.id
+        <where>
+            and a.deleted=0
+            <if test="param.meetingSet != null and param.meetingSet.size()>0">
+                and a.meeting_id in
+                <foreach item="item" index="index" collection="param.meetingSet" open="(" close=")" separator=",">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="param.nowDate !=null and param.nowDate !=''">
+                and a.now_date=#{param.nowDate}
+            </if>
+            <if test="param.meetingState !=null and param.meetingState !=''">
+                and a.meeting_state=#{param.meetingState}
+            </if>
+            <if test="param.meetingStatus !=null and param.meetingStatus !=''">
+                and a.meeting_status=#{param.meetingStatus}
+            </if>
+            <if test="param.auditStatus !=null">
+                and a.meeting_status!=5 and a.meeting_status!=6 and a.review_status=#{param.auditStatus}
+            </if>
+            order by a.create_time desc,a.start_time desc
+        </where>
+    </select>
+</mapper>

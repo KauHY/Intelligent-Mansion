@@ -1,0 +1,33 @@
+{
+	"Print to console": {
+		"prefix": "rter",
+		"body": [
+			"import { RouteRecordRaw } from 'vue-router';",
+
+			"const BASEPATH = '/equipment-management';",
+			
+			"const routes: Array<RouteRecordRaw> = [",
+			  "{",
+				"path: ${BASEPATH},",
+				"name: 'equipmentManagement',",
+				"props: true,",
+				"redirect: { name: 'equipmentManagementEquipmentList' },",
+				"meta: {",
+				 " title: '设备管理',",
+				"},",
+			  "},",
+			  "{",
+				"path: `${BASEPATH}/equipment-list`,",
+				"name: 'equipmentManagementEquipmentList',",
+				"component: () => import(/* webpackChunkName: \"equipment-management.equipment-list\" */ '~views/equipment-management/index.vue'),",
+				"meta: {",
+				  "title: '设备列表',",
+				"},",
+			  "},",
+			"];",
+			
+			"export default routes;",
+	  ],
+		"description": "路由代码模板"
+	  }
+}

@@ -1,0 +1,75 @@
+/**
+ * 智慧楼宇主题变量
+ * 以 CSS 自定义属性作为源头，确保运行时主题色切换可以驱动全局组件。
+ */
+
+$neutral-1: var(--theme-panel-solid);
+$neutral-2: var(--theme-panel-muted);
+$neutral-3: var(--theme-panel-subtle);
+$neutral-4: var(--theme-line);
+$neutral-5: var(--theme-line-strong);
+$neutral-6: var(--theme-text-muted);
+$neutral-7: var(--theme-text-secondary);
+$neutral-8: var(--theme-text-primary);
+$neutral-9: #0e2239;
+$neutral-10: #071523;
+
+$tech-blue-light: rgba(var(--theme-primary-rgb), 0.08);
+$tech-blue-hover: rgba(var(--theme-primary-rgb), 0.14);
+$tech-blue-active: rgba(var(--theme-primary-rgb), 0.2);
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 12px;
+$spacing-lg: 16px;
+$spacing-xl: 24px;
+$spacing-2xl: 32px;
+
+$radius-xs: 8px;
+$radius-sm: 10px;
+$radius-md: 12px;
+$radius-lg: 16px;
+$radius-xl: 20px;
+
+$shadow-sm: 0 8px 20px rgba(8, 24, 40, 0.06);
+$shadow-md: 0 16px 32px rgba(8, 24, 40, 0.08);
+$shadow-lg: 0 24px 48px rgba(8, 24, 40, 0.12);
+$shadow-hover: 0 16px 30px rgba(var(--theme-primary-rgb), 0.2);
+
+$transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-base: 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+$transition-slow: 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+
+$border-light: 1px solid rgba(123, 149, 177, 0.14);
+$border-base: 1px solid var(--theme-line);
+$border-dark: 1px solid var(--theme-line-strong);
+
+@mixin panel-surface {
+    background: var(--theme-panel-solid);
+    border: 1px solid var(--theme-panel-border);
+    box-shadow: var(--theme-panel-shadow);
+}
+
+@mixin glass-surface {
+    background: var(--theme-panel-bg);
+    border: 1px solid var(--theme-panel-border);
+    box-shadow: var(--theme-panel-shadow);
+    backdrop-filter: blur(18px);
+}
+
+@mixin focus-ring {
+    border-color: var(--ant-primary-color);
+    box-shadow:
+        0 0 0 3px rgba(var(--theme-primary-rgb), 0.12),
+        0 14px 28px rgba(var(--theme-primary-rgb), 0.08);
+}
+
+@mixin tech-divider($direction: 90deg) {
+    background:
+        linear-gradient(
+            $direction,
+            rgba(var(--theme-primary-rgb), 0),
+            rgba(var(--theme-primary-rgb), 0.22),
+            rgba(var(--theme-primary-rgb), 0)
+        );
+}

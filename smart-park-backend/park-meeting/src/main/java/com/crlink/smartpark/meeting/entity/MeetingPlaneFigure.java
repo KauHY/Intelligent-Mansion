@@ -1,0 +1,59 @@
+package com.crlink.smartpark.meeting.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.IdType;
+import java.time.LocalDateTime;
+import com.baomidou.mybatisplus.annotation.TableId;
+import java.io.Serializable;
+import io.swagger.annotations.ApiModel;
+import io.swagger.annotations.ApiModelProperty;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.Accessors;
+
+/**
+ * <p>
+ * 会议室平面图
+ * </p>
+ * */
+@Data
+@EqualsAndHashCode(callSuper = false)
+@Accessors(chain = true)
+@TableName("mee_meeting_plane_figure")
+@ApiModel(value="MeetingPlaneFigure数据库对象", description="会议室平面图")
+public class MeetingPlaneFigure implements Serializable {
+
+    private static final long serialVersionUID=1L;
+
+    @TableId(value = "id", type = IdType.ASSIGN_ID)
+    private String id;
+
+    @ApiModelProperty(value = "所属园区")
+    private String parkOrgId;
+
+    @ApiModelProperty(value = "所属楼栋单元")
+    private String buildingId;
+
+    @ApiModelProperty(value = "所在楼层")
+    private String floorId;
+
+    @ApiModelProperty(value = "会议室平面图")
+    private String meetingPlaneFigure;
+
+    @ApiModelProperty(value = "创建时间")
+    private LocalDateTime createTime;
+
+    @ApiModelProperty(value = "创建人")
+    private String createBy;
+
+    @ApiModelProperty(value = "更新时间")
+    private LocalDateTime updateTime;
+
+    @ApiModelProperty(value = "更新人")
+    private String updateBy;
+
+    @ApiModelProperty(value = "是否删除 1是 0否")
+    private Boolean deleted;
+
+
+}

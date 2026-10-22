@@ -1,0 +1,63 @@
+/**
+ * 标签页组件主题重构
+ */
+
+.ant-tabs {
+    &-nav {
+        margin-bottom: 12px;
+
+        &::before {
+            border-bottom: 1px solid rgba(123, 149, 177, 0.16);
+        }
+    }
+
+    &-tab {
+        padding: 10px 14px;
+        font-size: 14px;
+        color: $neutral-7;
+        border-radius: $radius-sm;
+        transition: all $transition-fast;
+
+        &:hover {
+            color: var(--theme-primary-deep);
+            background: rgba(var(--theme-primary-rgb), 0.06);
+        }
+
+        &-active {
+            background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.12) 0%, rgba(var(--theme-primary-rgb), 0.06) 100%);
+
+            .ant-tabs-tab-btn {
+                font-weight: 600;
+                color: var(--theme-primary-deep);
+            }
+        }
+    }
+
+    &-ink-bar {
+        height: 3px;
+        background: var(--ant-primary-color);
+        border-radius: 2px 2px 0 0;
+    }
+
+    &-card {
+        .ant-tabs-tab {
+            margin-right: 2px;
+            background: rgba(255, 255, 255, 0.82);
+            border: 1px solid rgba(123, 149, 177, 0.16);
+            border-radius: $radius-sm $radius-sm 0 0;
+
+            &:hover {
+                background: rgba(var(--theme-primary-rgb), 0.08);
+            }
+
+            &-active {
+                background: #fff;
+                border-bottom-color: rgba(255, 255, 255, 0.96);
+            }
+        }
+    }
+
+    &-content {
+        padding: 16px 0 0;
+    }
+}

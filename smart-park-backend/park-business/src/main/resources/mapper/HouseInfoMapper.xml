@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.business.mapper.HouseInfoMapper">
+
+    <!--    <select id="listHouseInfo" resultMap="houseInfoVO">-->
+<!--    <select id="listHouseInfo" resultMap="houseInfoVO">-->
+<!--        select h.*,-->
+<!--        b.effect_type,-->
+<!--        b.status,-->
+<!--        b.deadline,-->
+<!--        b.employee_id-->
+<!--        FROM-->
+<!--        bus_house_info h-->
+<!--        LEFT JOIN bus_business_house_relation r ON h.id = r.house_info_id AND r.deleted = 0-->
+<!--        left JOIN bus_business_info b ON b.id = r.business_info_id AND b.deleted = 0-->
+<!--        WHERE-->
+<!--        h.deleted = 0 AND r.deleted = 0 AND b.deleted = 0-->
+<!--            <if test="param.businessStatus!=null">-->
+<!--                AND b.status=#{param.businessStatus}-->
+<!--            </if>-->
+<!--            <if test="param.effectType!=null">-->
+<!--                AND b.effect_type=#{param.effectType}-->
+<!--            </if>-->
+<!--            <if test="param.parkOrgIds!=null and param.parkOrgIds.size()>0">-->
+<!--                and h.park_org_id in-->
+<!--                <foreach collection="param.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">-->
+<!--                    #{parkOrgId}-->
+<!--                </foreach>-->
+<!--            </if>-->
+<!--            <if test="param.employeeIds!=null and param.employeeIds.size()>0">-->
+<!--                and b.employee_id in-->
+<!--                <foreach collection="param.employeeIds" open="(" separator="," close=")" item="employeeId">-->
+<!--                    #{employeeId}-->
+<!--                </foreach>-->
+<!--            </if>-->
+<!--        order by h.create_time-->
+<!--    </select>-->
+
+<!--    <resultMap id="houseVO" type="com.crlink.smartpark.system.dto.house.HouseVO" autoMapping="true">-->
+<!--        <id column="house_id" property="id"></id>-->
+<!--    </resultMap>-->
+<!--    <resultMap id="houseInfoVO" type="com.crlink.smartpark.business.vo.HouseInfoVO" autoMapping="true">-->
+<!--        <id column="id" property="id"></id>-->
+<!--        <result column="house_id" property="houseId"></result>-->
+<!--        <result column="employee_id" property="employeeId"></result>-->
+<!--        <result column="status" property="businessStatus"></result>-->
+<!--        <association column="house_id" property="houseVO" resultMap="houseVO"></association>-->
+<!--    </resultMap>-->
+</mapper>

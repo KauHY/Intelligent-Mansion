@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.ParkMapper">
+
+
+    <select id="listParkByOrgIds"
+            resultType="com.crlink.smartpark.system.vo.ParkDTO"
+            parameterType="com.crlink.smartpark.system.query.ParkListQuery">
+        select so.id parkOrgId,
+        so.org_name name,sp.province,sp.city,sp.address,sp.longitude,sp.latitude
+        from
+        sys_park sp
+        right join sys_organization so on sp.park_org_id = so.id
+        <where>
+            so.org_type=1 and
+            so.id in
+            <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">#{parkOrgId}</foreach>
+            <if test="name != null and name != ''">
+                and so.org_name like concat('%',#{name},'%')
+            </if>
+            and so.deleted = 0
+        </where>
+        order by so.create_time desc
+    </select>
+
+    <select id="queryParksByName" resultType="com.crlink.smartpark.system.vo.ParkDTO">
+        select
+        so.org_name name,
+        so.id parkOrgId,
+        sp.longitude,
+        sp.latitude
+        from
+        sys_park sp
+        inner join sys_organization so on sp.park_org_id = so.id
+        <where>
+            so.deleted=0 and sp.deleted=0
+            <if test="name != null and name != ''">
+                and so.org_name like concat('%',#{name},'%')
+            </if>
+            and so.id in
+            <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">#{parkOrgId}</foreach>
+        </where>
+        order by so.org_name desc
+    </select>
+</mapper>

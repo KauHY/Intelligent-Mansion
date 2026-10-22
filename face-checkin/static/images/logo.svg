@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16px" height="16px" viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>智慧园区web页签logo</title>
+    <defs>
+        <path d="M13.206118,0 L0,0 L0.00356602097,14.7863034 C3.13559958,15.3030442 5.33723218,15.5614146 6.60846383,15.5614146 C7.80754889,15.5614146 10.0067669,15.2177234 13.206118,14.5303409 L13.206118,0 Z" id="path-1"></path>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-3">
+            <stop stop-color="#FFCA84" offset="0%"></stop>
+            <stop stop-color="#FF9409" offset="100%"></stop>
+        </linearGradient>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-4">
+            <stop stop-color="#FFB85A" offset="0%"></stop>
+            <stop stop-color="#DE5000" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="智慧园区web页签logo" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="web页签icon" transform="translate(0.000000, 0.150178)">
+            <g id="编组-7" transform="translate(1.722621, 0.000000)">
+                <mask id="mask-2" fill="white">
+                    <use xlink:href="#path-1"></use>
+                </mask>
+                <g id="蒙版"></g>
+                <g mask="url(#mask-2)">
+                    <g transform="translate(0.007132, 0.000000)">
+                        <g id="编组-8" transform="translate(8.699186, 3.465559)">
+                            <path d="M2.41986401,0 L4.49980026,1.39370684 L4.49980026,3.06324425 L2.41986401,2.06135739 L2.41986401,0 Z" id="形状结合" fill="url(#linearGradient-3)"></path>
+                            <polygon id="路径-2备份-8" fill="#ED9540" points="2.41986401 11.7805564 0.0204564638 11.93797 0 1.40476148 2.41986401 0"></polygon>
+                        </g>
+                        <g id="编组-2备份">
+                            <path d="M8.71910041,15.305 L8.71964216,15.9356708 L5.93825407,16.8508648 L5.93825407,15.5614146 L8.71910041,15.305 Z M5.93825407,0 L8.71964216,1.83521796 L8.71964216,4.90528864 L5.93810041,3.487 L5.93825407,0 Z" id="形状结合" fill="url(#linearGradient-4)"></path>
+                            <polygon id="路径-2备份-4" fill="#ED9540" points="5.93825407 16.8508648 0 15.6558162 0.00653977882 4.81938112 5.50528808 0.284129971 5.93825407 2.24498617e-14 5.93825407 0.753001969"></polygon>
+                        </g>
+                    </g>
+                </g>
+            </g>
+            <g id="编组-9" transform="translate(0.000000, 14.262125)" fill="#ED9540">
+                <path d="M8,1.58769681 C11.9265277,1.58769681 14.5931944,1.05846454 16,0 C15.1184998,0.494451908 12.4497587,0.741677862 7.99377664,0.741677862 C3.53779457,0.741677862 0.873202354,0.494451908 0,0 C1.4068056,1.05846454 4.07347227,1.58769681 8,1.58769681 Z" id="形状"></path>
+            </g>
+        </g>
+    </g>
+</svg>

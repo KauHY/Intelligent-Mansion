@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.ProReceiveManagerMapper">
+
+    <select id="listPage" resultType="com.crlink.smartpark.customer.dto.ProReceiveManagerDTO">
+        SELECT
+        m.id,
+        m.park_org_id,
+        m.company_id,
+        m.employee_id,
+        m.apply_time,
+        m.apply_no,
+        m.park_org_id,
+        m.audit_state,
+        m.stock_state,
+        m.need_return,
+        m.return_num_total,
+        m.remark,
+        m.return_num_current,
+        m.receive_num,
+        m.remark,
+        g.goods_name,
+        m.stock_out_time,
+        m.stock_in_time
+        from cus_pro_receive_manager m
+        LEFT JOIN cus_pro_stock_manager s ON m.stock_id = s.id
+        LEFT JOIN cus_pro_goods_manager g ON s.goods_id = g.id
+        <where>
+            m.deleted = 0
+            <choose>
+                <when test="query.parkOrgId !=null and query.parkOrgId !=''">
+                    and m.park_org_id=#{query.parkOrgId}
+                </when>
+                <otherwise>
+                    and m.park_org_id in
+                    <foreach item="item" index="index" collection="parkOrgIds" open="(" close=")" separator=",">
+                        #{item}
+                    </foreach>
+                </otherwise>
+            </choose>
+            <if test="employeeIds!=null and employeeIds.size()>0">
+                and m.employee_id in
+                <foreach item="item" index="index" collection="employeeIds" open="(" close=")" separator=",">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="query.employeeId!=null and query.employeeId!=''">
+                and m.employee_id = #{query.employeeId}
+            </if>
+            <if test="query.auditState!=null">
+                and m.audit_state = #{query.auditState}
+            </if>
+            <if test="query.stockState!=null">
+                and m.stock_state = #{query.stockState}
+            </if>
+            <if test="query.needReturn!=null">
+                and m.need_return = #{query.needReturn}
+            </if>
+            <if test="query.goodsName!=null and query.goodsName!=''">
+                and goods_name like concat('%',#{query.goodsName},'%')
+            </if>
+            <if test="query.applyTimeStart!=null and query.applyTimeEnd!=null ">
+                and m.apply_time between #{query.applyTimeStart} and #{query.applyTimeEnd}
+            </if>
+        </where>
+        order by m.apply_time desc
+    </select>
+    <select id="listWxPage" resultType="com.crlink.smartpark.customer.dto.ProReceiveManagerDTO">
+        SELECT
+        m.id,
+        m.park_org_id,
+        m.company_id,
+        m.employee_id,
+        m.apply_time,
+        m.apply_no,
+        m.park_org_id,
+        m.audit_state,
+        m.stock_state,
+        m.need_return,
+        m.return_num_total,
+        m.receive_num,
+        g.goods_name,
+        m.stock_out_time,
+        m.stock_in_time
+        from cus_pro_receive_manager m
+        LEFT JOIN cus_pro_stock_manager s ON m.stock_id = s.id
+        LEFT JOIN cus_pro_goods_manager g ON s.goods_id = g.id
+        <where>
+            m.deleted = 0
+            <if test="query.parkOrgId !=null and query.parkOrgId !=''">
+                and m.park_org_id=#{query.parkOrgId}
+            </if>
+            <if test="query.employeeId!=null and query.employeeId!=''">
+                and m.employee_id = #{query.employeeId}
+            </if>
+            <if test="query.auditState!=null">
+                and m.audit_state = #{query.auditState}
+            </if>
+            <if test="query.stockState!=null">
+                and m.stock_state = #{query.stockState}
+            </if>
+            <if test="query.needReturn!=null">
+                and m.need_return = #{query.needReturn}
+            </if>
+            <if test="query.goodsName!=null">
+                and g.goods_name like "%"#{query.goodsName}"%"
+            </if>
+            <if test="query.applyTimeStart!=null and query.applyTimeEnd!=null ">
+                and m.apply_time between #{query.applyTimeStart} and #{query.applyTimeEnd}
+            </if>
+        </where>
+        order by m.apply_time desc
+    </select>
+</mapper>

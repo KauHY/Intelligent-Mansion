@@ -1,0 +1,20 @@
+{
+	"Print to console": {
+		"prefix": "mept",
+		"body": [
+			"async carRecordExport(searchData:CarPassRecordSearchParams) {",
+				"const { data, headers } = await request({",
+				  "url: URLS.carRecordExport,",
+				  "data: searchData,",
+				  "responseType: 'blob',",
+				  // method: 'get',
+				"});",
+				"return {",
+				  "data,",
+				 " contentDisposition: headers['content-disposition'],",
+				"} as DownloadReturnData;",
+			  "}",
+	  ],
+		"description": "models_urlsConstant=>urls枚举常量模板"
+	  }
+}

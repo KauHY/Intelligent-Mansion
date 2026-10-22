@@ -1,0 +1,17 @@
+{
+	"Print to console": {
+		"prefix": "murls",
+		"body": [
+		"enum $1 {",
+			"equipmentListPage = '/park-device/device-info/listPage', // 设备信息分页",
+			"equipmentAdd = '/park-device/device-info/create', // 设备信息新增",
+			"equipmentDel = '/park-device/device-info/remove/', // 设备信息分页",
+			"equipmentModify = '/park-device/device-info/modify', // 设备信息分页",
+			"equipmentListDic = '/park-device/device-info/listDropDownDevices', // 设备信息下拉",
+			"equipmentFindById = '/park-device/device-info/findById/', // 设备信息详情",
+		"}",
+		"export default $1;"
+	  ],
+		"description": "models_urlsConstant=>urls枚举常量模板"
+	  }
+}

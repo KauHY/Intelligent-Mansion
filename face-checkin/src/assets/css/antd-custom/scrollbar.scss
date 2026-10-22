@@ -1,0 +1,161 @@
+/**
+ * 全局滚动条样式
+ * 目标：统一滚动条样式，颜色与主题色和玻璃面板保持一致
+ */
+
+@mixin custom-scrollbar {
+    &::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        background-color: rgba(160, 182, 205, 0.12);
+    }
+
+    &::-webkit-scrollbar-track {
+        background-color: rgba(160, 182, 205, 0.12);
+        border-radius: 999px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.5) 0%, rgba(var(--theme-primary-rgb), 0.78) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        border-radius: 999px;
+        transition: opacity $transition-base;
+
+        &:hover {
+            opacity: 0.8;
+        }
+
+        &:active {
+            opacity: 0.9;
+        }
+    }
+
+    &::-webkit-scrollbar-corner {
+        background-color: rgba(160, 182, 205, 0.12);
+    }
+
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--theme-primary-rgb), 0.76) rgba(160, 182, 205, 0.12);
+}
+
+.ant-select-dropdown,
+.ant-dropdown-menu {
+    @include custom-scrollbar;
+}
+
+.ant-menu {
+    @include custom-scrollbar;
+}
+
+.ant-drawer-body {
+    @include custom-scrollbar;
+}
+
+.ant-modal-body {
+    @include custom-scrollbar;
+}
+
+.ant-card-body {
+    @include custom-scrollbar;
+}
+
+.ant-list {
+    @include custom-scrollbar;
+}
+
+.ant-tree {
+    @include custom-scrollbar;
+}
+
+.ant-transfer-list-content {
+    @include custom-scrollbar;
+}
+
+.ant-cascader-menu {
+    @include custom-scrollbar;
+}
+
+.ant-picker-panel-container,
+.ant-picker-time-panel-column {
+    @include custom-scrollbar;
+}
+
+.ant-tabs-content {
+    @include custom-scrollbar;
+}
+
+.ant-collapse-content-box {
+    @include custom-scrollbar;
+}
+
+.ant-descriptions-view {
+    @include custom-scrollbar;
+}
+
+.ant-input-textarea {
+    textarea {
+        @include custom-scrollbar;
+    }
+}
+
+.ant-typography pre {
+    @include custom-scrollbar;
+}
+
+.ant-notification-notice {
+    @include custom-scrollbar;
+}
+
+.ant-message-notice-content {
+    @include custom-scrollbar;
+}
+
+.ant-popover-inner-content {
+    @include custom-scrollbar;
+}
+
+.ant-tooltip-inner {
+    @include custom-scrollbar;
+}
+
+.ant-steps-vertical {
+    @include custom-scrollbar;
+}
+
+.ant-timeline {
+    @include custom-scrollbar;
+}
+
+.ant-picker-calendar {
+    @include custom-scrollbar;
+}
+
+.ant-image-preview-img-wrapper {
+    @include custom-scrollbar;
+}
+
+.ant-layout-sider {
+    @include custom-scrollbar;
+}
+
+.ant-layout-content {
+    @include custom-scrollbar;
+}
+
+.ant-form-item-control-input-content {
+    @include custom-scrollbar;
+}
+
+.ant-splitter-panel {
+    @include custom-scrollbar;
+}
+
+.ant-virtual-list-holder {
+    @include custom-scrollbar;
+}
+
+.scrollable-container,
+.scroll-wrapper,
+.content-scroll {
+    @include custom-scrollbar;
+}

@@ -1,0 +1,15 @@
+{
+    "html.format.enable": false,
+    "json.format.enable": false,
+    "javascript.format.enable": false,
+    "typescript.format.enable": false,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    // "eslint.format.enable": true,
+    "eslint.validate": [
+        "javascript",
+        "javascriptreact",
+        "vue"
+    ],
+}

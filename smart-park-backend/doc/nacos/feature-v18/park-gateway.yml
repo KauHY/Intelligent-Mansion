@@ -1,0 +1,21 @@
+########白名单有新增，下面是完整的白名单，可以整个复制过去做替换#######
+param:
+  filter:
+    white_uri: /smartPark/park-system/common/getImgCode,/smartPark/park-system/parkManagement/auth/login,/smartPark/park-system/platform/auth/login,/smartPark/park-system/common/getImgCode,/smartPark/park-system/parkManagement/auth/validateIdentity,/smartPark/park-system/platform/auth/validateIdentity,/smartPark/park-system/parkManagement/auth/resetPwdForForget,/smartPark/park-system/platform/auth/resetPwdForForget,/smartPark/park-system/wx/user/authParkVisitor/login,/smartPark/park-system/wx/user/authParkManagement/login,/smartPark/park-system/mobile/park/listParks,/smartPark/park-system/wx/user/authParkManagement/login/**/doc.html,/**/swagger-ui.html,/**/webjars/**,/**/swagger-resources/**,/**/v2/api-docs,/**/csrf,/smartPark/park-customer/parkManagement/information/wx/homepage/listInfoPage/*,/smartPark/park-customer/parkManagement/information/wx/homepage/listNoticePage/*,/smartPark/park-system/dictionary/wx/listDictByTypes,/smartPark/park-common/file/imagePreview,/smartPark/park-common/file/get,/smartPark/park-common/file/download,/smartPark/park-customer/parkManagement/advertisement/wx/wxAdvertisementList/*,/smartPark/park-customer/parkManagement/wx/goodsRelease/findById/*,/smartPark/park-common/file/getFile,/smartPark/park-customer/parkManagement/notice/wx/homepage/*,/smartPark/park-customer/parkManagement/information/wx/homepage/*,/smartPark/park-system/business-user/register,/smartPark/park-system/business-user/getSmsCode,/smartPark/park-system/business-user/login,/smartPark/park-meeting/meeting-manage/overviewMeeting,/smartPark/park-system/business-user/*,/smartPark/park-common/proxy,/smartPark/park-device/dahua/icc/event/accept,/smartPark/park-system/parkManagement/auth/*,/smartPark/park-system/platform/auth/*,/**/3d/**,/smartPark/park-system/common/validateImgCode,/smartPark/park-system/wx-oa-mobile-relation/*
+
+#######把ribbon这5行的配置，替换为下面feign部分########
+ribbon:
+  httpclient:
+    enabled: true
+  ReadTimeout: 60000
+  ConnectTimeout: 60000
+#######替换部分########
+feign:
+  client:
+    config:
+      default:
+        #超时时间默认为1s
+        #建立连接所用的时间，适用于网络状况正常的情况下，两端连接所需要的时间
+        ConnectTimeOut: 60000
+        #指建立连接后从服务端读取到可用资源所用的时间
+        ReadTimeOut: 60000

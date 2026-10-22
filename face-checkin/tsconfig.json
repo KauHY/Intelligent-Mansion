@@ -1,0 +1,58 @@
+{
+    "compilerOptions": {
+        // "strictNullChecks": true, // 开启null、undefined检测
+        "strict": true,
+        "baseUrl": "./",
+        "allowJs": true,
+        "target": "esnext",
+        "module": "esnext",
+        "moduleResolution": "node",
+        "jsx": "preserve",
+        // "outDir": "./dist/",
+        // "jsx":"react",
+        "noEmit": true,
+        "noImplicitThis": false, // 关闭 this 类型注解提示
+        "preserveConstEnums": true, // 生成枚举的映射代码
+        "noImplicitAny": true,       // 不允许隐式的 any 类型
+        "removeComments": true,      // 删除注释 
+        "suppressImplicitAnyIndexErrors": true,
+        "allowSyntheticDefaultImports":true,
+        "paths": {
+            "@/*": [
+                "src/*"
+            ],
+            "~assets/*": [
+                "src/assets/*"
+            ],
+            "~utils/*": [
+                "src/utils/*"
+            ],
+            "~views/*": [
+                "src/views/*"
+            ],
+            "~services/*": [
+                "src/services/*"
+            ],
+            "~components/*": [
+                "src/components/*"
+            ],
+            "~composition/*": [
+                "src/composition/*"
+            ],           
+             "~models/*": [
+                "src/models/*"
+            ],
+        },
+        "types": [
+            "node",
+            "webpack-env",
+        ] 
+    },
+    "include": [
+        // ** : 任意目录 ， * : 任意文件
+        "./src/**/*"
+    ],
+    "exclude": [
+        "./**/*.obj"
+    ]
+}

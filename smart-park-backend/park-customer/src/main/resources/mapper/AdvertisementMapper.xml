@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.AdvertisementMapper">
+    <select id="pageAdvertisementList" resultType="com.crlink.smartpark.customer.entity.Advertisement"
+            parameterType = "com.crlink.smartpark.customer.controller.request.query.AdvertisementQuery">
+        select ad.id,
+               ad.name,
+               ad.sort,
+               ad.position,
+               ad.picture,
+               ad.jump_type,
+               ad.jump_content,
+               ad.effect_time_start,
+               ad.effect_time_end,
+               ad.create_time,
+               ad.update_time,
+               ad.create_by,
+               case
+                   when ad.effect_time_start &gt; #{now} then 1
+                   when ad.effect_time_start &lt; #{now} and ad.effect_time_end &gt; #{now} then 0
+                   else 2
+               end status
+        from cus_advertisement ad
+        left join cus_business_park_relation r on ad.id = r.business_id
+        <where>
+         ad.deleted = 0
+         and r.business_type = 2 and r.deleted = 0
+         and r.park_org_id in
+            <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">
+                #{parkOrgId}
+            </foreach>
+         <if test="query.name!=null and query.name!=''">
+            and ad.name like "%"#{query.name}"%"
+         </if>
+         <if test="query.effectTimeStart!=null and query.effectTimeEnd!=null" >
+            and not(ad.effect_time_start &gt; #{query.effectTimeEnd} or ad.effect_time_end &lt; #{query.effectTimeStart})
+        </if>
+        </where>
+        GROUP BY ad.id
+        order by status asc,ad.sort asc,ad.update_time desc
+    </select>
+</mapper>

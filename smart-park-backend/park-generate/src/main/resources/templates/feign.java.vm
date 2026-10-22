@@ -1,0 +1,72 @@
+package ${package.Service.replace('service', 'feign')};
+
+import com.github.pagehelper.PageInfo;
+
+import ${package.Entity.replace('entity', 'query')}.${entity}Query;
+import ${package.Entity.replace('entity', 'dto')}.${entity}DTO;
+import com.crlink.smartpark.common.web.ResponseResult;
+
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * <p>
+ * $!{table.comment} 服务类
+ * </p>
+ *
+ * @author ${author}
+ * @since ${date}
+ */
+@FeignClient(name = "${cfg.serverName}", path = "${cfg.serverPath}/#if(${controllerMappingHyphenStyle})${controllerMappingHyphen}#else${table.entityPath}#end", contextId="${entity}Provider")
+#if(${kotlin})
+interface ${table.serviceName} : ${superServiceClass}<${entity}>
+#else
+public interface ${entity}Provider {
+
+    /**
+     * 【$!{table.comment}】新增
+     *
+     * @param ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}DTO 实体对象
+     * @return 返回保存成功的对象
+     */
+    @PostMapping("/create")
+    ResponseResult<${entity}DTO> create(@RequestBody ${entity}DTO ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}DTO);
+
+    /**
+     * 【$!{table.comment}】删除
+     *
+     * @param id 主键
+     * @return 是否成功
+     */
+    @DeleteMapping("/remove/{id}")
+    ResponseResult<Boolean> remove(@PathVariable("id") String id);
+
+    /**
+     * 【$!{table.comment}】根据ID查询
+     *
+     * @param id 主键
+     * @return $!{table.comment}实体
+     */
+    @GetMapping("/findById/{id}")
+    ResponseResult<${entity}DTO> findById(@PathVariable("id") String id);
+
+    /**
+     * 【$!{table.comment}】修改
+     *
+     * @param ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}DTO 实体对象
+     * @return 返回保存成功的对象
+     */
+    @PostMapping("/modify")
+    ResponseResult<${entity}DTO> modify(@RequestBody ${entity}DTO ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}DTO);
+
+    /**
+     * 【$!{table.comment}】分页查询
+     *
+     * @param ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}Query 查询参数
+     * @return 分页数据
+     */
+    @PostMapping("/listPage")
+    ResponseResult<PageInfo<${entity}DTO>> findListByPage(@RequestBody ${entity}Query ${entity.substring(0,1).toLowerCase()}${entity.substring(1)}Query);
+
+}
+#end

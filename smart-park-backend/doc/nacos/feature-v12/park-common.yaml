@@ -1,0 +1,6 @@
+//添加阿里云短信配置
+aliyun:
+  sms:
+    regionId: cn-hangzhou
+    accessKeyId: ${ALIYUN_SMS_ACCESSKEYID}
+    secret: ${ALIYUN_SMS_SECRET}

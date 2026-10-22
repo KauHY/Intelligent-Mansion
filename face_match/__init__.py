@@ -6,6 +6,8 @@ from .matcher import (
     FaceMatchError,
     MatchResult,
     ensure_models,
+    extract_face_feature,
+    match_photo_to_feature,
     match_faces,
 )
 
@@ -16,5 +18,7 @@ __all__ = [
     "FaceMatchError",
     "MatchResult",
     "ensure_models",
+    "extract_face_feature",
+    "match_photo_to_feature",
     "match_faces",
 ]

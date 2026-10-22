@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.EmployeeMapper">
+
+    <select id="listEmployeeByLikeName" resultMap="employee">
+        select e.*,
+        c.name companyName
+        from sys_employee e
+        left join sys_company c on e.company_id =c.id and c.deleted=0
+        <where>
+            <if test="companyId !=null and companyId !='' ">
+                AND e.company_id=#{companyId}
+            </if>
+            <if test="companyType !=null">
+                AND c.company_type=#{companyType}
+            </if>
+            <if test="likeName != null and likeName!= ''">
+                AND e.name like concat("%",#{likeName},"%")
+            </if>
+            <if test="parkOrgIds!=null and parkOrgIds.size()>0">
+                and e.park_org_id in
+                <foreach collection="parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            AND e.status = 1 AND e.deleted=0
+        </where>
+    </select>
+
+    <select id="orderRecordQueryEmployeeColumns" resultType="com.crlink.smartpark.system.entity.Employee">
+        select e.id,
+        e.name,
+        e.company_id,
+        e.mobile
+        from sys_employee e
+        <where>
+            <if test="employeeIds!=null and employeeIds.size()>0">
+                and e.id in
+                <foreach collection="employeeIds" open="(" separator="," close=")" item="employeeId">
+                    #{employeeId}
+                </foreach>
+            </if>
+        </where>
+    </select>
+    <resultMap id="employee" type="com.crlink.smartpark.system.entity.Employee" autoMapping="true">
+        <result column="tag_ids" property="tagIds"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.FastjsonTypeHandler"></result>
+    </resultMap>
+</mapper>

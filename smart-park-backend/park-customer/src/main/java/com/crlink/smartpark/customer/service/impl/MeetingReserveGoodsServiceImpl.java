@@ -1,0 +1,120 @@
+package com.crlink.smartpark.customer.service.impl;
+
+import com.crlink.smartpark.customer.entity.MeetingReserveGoods;
+import com.crlink.smartpark.customer.model.query.MeetingReserveGoodsQuery;
+import com.crlink.smartpark.customer.model.MeetingReserveGoodsReqDTO;
+import com.crlink.smartpark.customer.dto.MeetingReserveGoodsDTO;
+import com.crlink.smartpark.customer.service.MeetingReserveGoodsService;
+import com.crlink.smartpark.customer.mapper.MeetingReserveGoodsMapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.crlink.smartpark.core.utils.MyBeanUtils;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.conditions.query.LambdaQueryChainWrapper;
+import com.crlink.smartpark.common.message.ResolinkRuntimeException;
+import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.crlink.smartpark.core.utils.MyBeanUtils;
+import com.google.common.collect.Lists;
+import com.crlink.smartpark.core.utils.MyPageInfoUtils;
+import com.crlink.smartpark.core.utils.EntityUserUtil;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+import com.baomidou.mybatisplus.core.toolkit.support.SFunction;
+import cn.hutool.core.collection.CollectionUtil;
+
+import java.util.Collections;
+
+import com.google.common.collect.Lists;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * 租赁会议室预定物资管理 服务实现类
+ * */
+@Service
+public class MeetingReserveGoodsServiceImpl extends ServiceImpl<MeetingReserveGoodsMapper, MeetingReserveGoods>
+    implements MeetingReserveGoodsService {
+
+    @Override
+    public Map<String, ?> id2ValueMap(Collection<String> ids, SFunction<MeetingReserveGoods, ?> sValue) {
+        if (ObjectUtils.isEmpty(ids)) {
+            return Collections.emptyMap();
+        }
+        boolean flag = sValue != null;
+        LambdaQueryChainWrapper<MeetingReserveGoods> lambdaQuery =
+            this.lambdaQuery().in(MeetingReserveGoods::getId, ids);
+        if (flag) {
+            lambdaQuery.select(MeetingReserveGoods::getId, sValue);
+        }
+        Stream<MeetingReserveGoods> stream = lambdaQuery.list().parallelStream();
+        Map<String, Object> result = null;
+        if (flag) {
+            result = stream.collect(Collectors.toMap(MeetingReserveGoods::getId, sValue));
+        } else {
+            result = stream.collect(Collectors.toMap(MeetingReserveGoods::getId, Function.identity()));
+        }
+        return result;
+    }
+
+    /**
+     * 保存或更新数据
+     */
+    @Override
+    public Boolean saveOrUpdateMeetingReserveGoods(MeetingReserveGoodsReqDTO reqDTO) {
+        MeetingReserveGoods entity = MyBeanUtils.copy(reqDTO, MeetingReserveGoods::new);
+        EntityUserUtil.setAllDynamic(entity);
+        return this.saveOrUpdate(entity);
+    }
+
+    /**
+     * 通过id查询实体
+     *
+     */
+    @Override
+    public MeetingReserveGoodsDTO getMeetingReserveGoodsById(String id) {
+        MeetingReserveGoods entity =
+            Optional.ofNullable(getById(id)).orElseThrow(() -> new ResolinkRuntimeException("100071"));
+        return entitiesToDTOs(Lists.newArrayList(entity)).get(0);
+    }
+
+    /**
+     * 分页查询
+     *
+     * @return 分页结果
+     */
+    @Override
+    public PageInfo<MeetingReserveGoodsDTO> listMeetingReserveGoodsPage(MeetingReserveGoodsQuery query) {
+        query.startPage();
+        List<MeetingReserveGoods> list = null;
+        MyPageInfoUtils.isEmptyPage(list);
+        List<MeetingReserveGoodsDTO> result = entitiesToDTOs(list);
+        return query.createPageInfo(result);
+    }
+
+    /**
+     * 封装查询条件
+     *
+     * @return 查询条件
+     */
+    private LambdaQueryWrapper<MeetingReserveGoods> getConditionWrapper(MeetingReserveGoodsQuery query) {
+        LambdaQueryWrapper<MeetingReserveGoods> queryWrapper = new LambdaQueryWrapper<MeetingReserveGoods>();
+        return queryWrapper;
+    }
+
+    /***
+     * entity转DTO
+     * 
+     * @return DTO集合
+     */
+    private List<MeetingReserveGoodsDTO> entitiesToDTOs(List<MeetingReserveGoods> entities) {
+        return MyBeanUtils.copyList(entities, MeetingReserveGoodsDTO::new, (s, t) -> {
+
+        });
+    }
+}

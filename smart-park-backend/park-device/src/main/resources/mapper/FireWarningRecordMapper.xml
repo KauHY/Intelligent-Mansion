@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.device.mapper.FireWarningRecordMapper">
+
+    <select id="listFireWarningRecordPage" resultType="com.crlink.smartpark.device.dto.FireWarningRecordDTO">
+        select
+        d.`park_org_id`,
+        r.`id`,
+        r.`device_id`,
+        r.`device_name`,
+        r.`warn_type`,
+        r.`warn_time`,
+        r.canceled,
+        r.`real_reason_type`,
+        r.`opinion`,
+        r.`status`
+        from dev_device_info d
+        right join dev_fire_warning_record r on d.device_id = r.device_id
+        <where>
+            d.deleted=0 and r.deleted=0 and r.device_type=#{q.deviceType}
+            <if test="q.parkOrgId!=null and q.parkOrgId !=''">
+                and d.park_org_id=#{q.parkOrgId}
+            </if>
+            <if test="q.deviceName!=null and q.deviceName !=''">
+                and r.device_name like concat('%',#{q.deviceName},'%')
+            </if>
+            <if test="q.deviceId!=null and q.deviceId !=''">
+                and r.device_id like concat('%',#{q.deviceId},'%')
+            </if>
+            <if test="q.warnType!=null ">
+                and r.warn_type=#{q.warnType}
+            </if>
+            <if test="q.warnTimeStart!=null and q.warnTimeEnd!=null ">
+                and r.warn_time &gt;= #{q.warnTimeStart} and r.warn_time &lt;= #{q.warnTimeEnd}
+            </if>
+            <if test="q.recordIds!=null and q.recordIds.size()>0">
+                and r.id in
+                <foreach collection="q.recordIds" open="(" separator="," close=")" item="recordId">
+                    #{recordId}
+                </foreach>
+            </if>
+            <if test="q.parkOrgIds!=null and q.parkOrgIds.size()>0">
+                and d.park_org_id in
+                <foreach collection="q.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            order by r.`warn_time` desc
+        </where>
+    </select>
+
+    <select id="countFireWarning" resultType="int">
+        select count(*)
+        from dev_device_info d
+        inner join dev_fire_warning_record r on d.device_id = r.device_id
+        <where>
+            and d.deleted=0
+            and d.park_org_id=#{parkOrgId}
+            <if test="startTime !=null">
+                and r.warn_time &gt;= #{startTime}
+            </if>
+            <if test="endTime !=null">
+                and r.warn_time &lt;= #{endTime}
+            </if>
+            <if test="status !=null">
+                and r.status=#{status}
+            </if>
+        </where>
+    </select>
+</mapper>

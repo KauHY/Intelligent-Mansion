@@ -1,0 +1,14 @@
+﻿FROM maven:3.8-openjdk-8 AS builder
+WORKDIR /build
+COPY . .
+RUN mvn -s settings.xml package -pl park-system -am -DskipTests -q
+
+FROM eclipse-temurin:8-jre-alpine
+RUN apk add --no-cache libgcc libstdc++ fontconfig ttf-dejavu
+WORKDIR /app
+COPY --from=builder /build/park-system/target/*.jar app.jar
+ENV PARAMS="--spring.profiles.active=docker"
+EXPOSE 30010
+ENTRYPOINT ["sh", "-c", "java -Xmx512m -Dfile.encoding=utf8 -jar app.jar $PARAMS"]
+
+

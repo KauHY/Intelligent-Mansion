@@ -1,0 +1,12 @@
+﻿FROM maven:3.8-openjdk-8 AS builder
+WORKDIR /build
+COPY . .
+RUN mvn -s settings.xml package -pl park-gateway -am -DskipTests -q
+
+FROM eclipse-temurin:8-jre-alpine
+WORKDIR /app
+COPY --from=builder /build/park-gateway/target/*.jar app.jar
+ENV PARAMS="--spring.profiles.active=docker"
+EXPOSE 8099
+ENTRYPOINT ["sh", "-c", "java -Xmx512m -Dfile.encoding=utf8 -jar app.jar $PARAMS"]
+

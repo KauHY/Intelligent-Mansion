@@ -1,0 +1,90 @@
+.v-table-box {
+    min-height: 0;
+
+    .v-table {
+        table {
+            font-size: 12px;
+
+            .table-striped {
+                td {
+                    background-color: #fafafa;
+                }
+            }
+
+            td {
+                vertical-align: middle;
+            }
+
+            .v-table-title {
+                font-weight: 900;
+            }
+        }
+        // .ant-table-body-outer
+        .ant-table-body-inner {
+            overflow: auto !important;
+        }
+
+        .surely-table-body {
+            > div:nth-child(2) {
+                opacity: 0 !important;
+            }
+        }
+
+        .ant-table-header::-webkit-scrollbar {
+            width: 1px;
+            min-width: 1px;
+            border-left: 1px solid #f0f0f0;
+        }
+
+        .ant-table-body::-webkit-scrollbar {
+            width: 1px;
+        }
+    }
+
+    .pagination-box {
+        display: flex;
+        flex-shrink: 0;
+        justify-content: flex-end;
+        margin: 16px 0;
+    }
+}
+
+.v-table-box--adaptive {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+
+    .v-table.ant-table-wrapper {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .v-table > .ant-spin-nested-loading,
+    .v-table > .ant-spin-nested-loading > .ant-spin-container,
+    .v-table .ant-table,
+    .v-table .ant-table-container {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .v-table .ant-table-body,
+    .v-table .ant-table-content {
+        flex: 1;
+        min-height: 0;
+        overflow: auto !important;
+    }
+
+    .v-table .ant-table-body {
+        height: auto !important;
+        max-height: none !important;
+    }
+
+    .v-table .ant-pagination,
+    .pagination-box {
+        flex-shrink: 0;
+    }
+}

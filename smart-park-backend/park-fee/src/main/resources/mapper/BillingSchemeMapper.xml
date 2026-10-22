@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.fee.mapper.BillingSchemeMapper">
+
+    <select id="listBillingSchemePage" parameterType="com.crlink.smartpark.fee.dto.BillingSchemeQuery"
+    resultType="com.crlink.smartpark.fee.entity.BillingScheme">
+        SELECT
+        fbs.id,
+        fbs.park_org_id,
+        fbs.scheme_name,
+        fbs.charge_item_id,
+        fbs.billing_cycle,
+        fbs.reserved_digits,
+        fbs.carry_mode,
+        fbs.formula_type,
+        fbs.amount_with_tax,
+        fbs.amount_without_tax,
+        fbs.calculation_standard,
+        fbs.unit_price_without_tax,
+        fbs.unit_price_with_tax,
+        fbs.charge_type,
+        fbs.charging_cycle,
+        fbs.cumulative_cycle,
+        fbs.day_of_month,
+        fbs.days_for_delay,
+        fbs.late_rate,
+        fbs.exempt_days,
+        fbs.status,
+        fbs.month_by,
+        fbs.late_type,
+        fbs.fee_type,
+        fbs.late_charge,
+        fbs.late_day_amount,
+        fbs.update_time
+        FROM fee_billing_scheme fbs
+        INNER JOIN fee_charge_item fci
+        ON fbs.charge_item_id = fci.id
+        <where>
+            fbs.deleted = 0
+            <if test="status != null and status != ''">
+                AND fbs.status = #{status}
+            </if>
+            <if test="schemeName != null and schemeName != ''">
+                AND fbs.scheme_name = #{schemeName}
+            </if>
+            <if test="parkOrgId != null and parkOrgId != ''">
+                AND fbs.park_org_id = #{parkOrgId}
+            </if>
+            <if test="parkOrgIds !=null and parkOrgIds.size()> 0">
+                AND fbs.park_org_id IN
+                <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            <if test="feeType != null and feeType != ''">
+                AND fci.fee_type = #{feeType}
+            </if>
+            <if test="feeTypes !=null and feeTypes.size()> 0">
+                and fci.fee_type in
+                <foreach collection="feeTypes" item="feeType" open="(" close=")" separator=",">
+                    #{feeType}
+                </foreach>
+            </if>
+            order by fbs.update_time desc
+
+        </where>
+
+    </select>
+</mapper>

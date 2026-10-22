@@ -1,0 +1,85 @@
+
+#######把ribbon这5行的配置，替换为下面feign部分########
+ribbon:
+  httpclient:
+    enabled: true
+  ReadTimeout: 60000
+  ConnectTimeout: 60000
+#######替换部分########
+feign:
+  client:
+    config:
+      default:
+        #超时时间默认为1s
+        #建立连接所用的时间，适用于网络状况正常的情况下，两端连接所需要的时间
+        ConnectTimeOut: 60000
+        #指建立连接后从服务端读取到可用资源所用的时间
+        ReadTimeOut: 60000
+
+
+#######阿里云短信的不确定有没有加上去，如果加了就忽略这段########
+aliyun:
+  sms:
+    regionId: cn-hangzhou
+    accessKeyId: ${ALIYUN_SMS_ACCESSKEYID}
+    secret: ${ALIYUN_SMS_SECRET}
+
+
+#######param下wx的参数是已有的，不用调整。mqtt是云海物联新加的，ip地址要调整成淮安的########
+param:
+  wx:
+    timeOut: 60000
+    proxyIP: 'crproxy.crcloud.com'
+    proxyPort: 80
+    oa:
+      appID: wxffbabf44d4723fed
+      appSecret: 07e74c58ab89a8b584534a687659b193
+  mqtt:
+    host: tcp://1.116.43.79:11883
+    username: nfh
+    password: zJYuEdHHvm7m0YRs
+    gateStatusTopic: vanhitech/up/online
+    deviceTopic: vanhitech/up/device/#
+    upTopic: vanhitech/up/#
+
+
+#把文件末尾device开头的参数替换成下面，其中ip换成生产的ip
+device:
+  common:
+    list:
+      url: http://生产的ip:12321/jitong/device/list?deviceType={}
+  electric:
+    enable:
+      url: http://生产的ip:12321/jitong/electricEnable?deviceId={}
+    disable:
+      url: http://生产的ip:12321/jitong/electricDisable?deviceId={}
+  liquid:
+    devices[0]:
+      originId: D_HA7_00001
+      newId: D_HA7_001
+      position: A1楼顶
+    devices[1]:
+      originId: D_HA7_00002
+      newId: D_HA7_002
+      position: A1地下室
+
+
+#2022-08-11更新，修改如下配置#
+device:
+  common:
+    list:
+      url: http://生产的ip:12321/jitong/device/list?deviceType={}
+  electric:
+    enable:
+      url: http://生产的ip:12321/jitong/electricEnable?deviceId={}
+    disable:
+      url: http://生产的ip:12321/jitong/electricDisable?deviceId={}
+  liquid:
+    devices[0]:
+      originId: D_HAE_00001
+      newId: D_HA7_001
+      position: A1楼顶消防水箱液位
+    devices[1]:
+      originId: D_HAE_00002
+      newId: D_HA7_002
+      position: A3负一楼消防水箱液位

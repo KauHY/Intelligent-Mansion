@@ -1,0 +1,150 @@
+/**
+ * 输入类组件主题重构
+ * 目标：统一表单控件的面板感、聚焦态和科技蓝高亮。
+ */
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-picker,
+.ant-select:not(.ant-select-customize-input) .ant-select-selector {
+    background: var(--theme-control-bg);
+    border: 1px solid var(--theme-control-border);
+    border-radius: $radius-sm;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    transition:
+        border-color $transition-base,
+        box-shadow $transition-base,
+        background $transition-base;
+
+    &:hover:not(:disabled):not(.ant-input-disabled) {
+        border-color: rgba(var(--theme-primary-rgb), 0.34);
+    }
+}
+
+.ant-input,
+.ant-input-affix-wrapper {
+    padding: 6px 12px;
+    color: $neutral-8;
+
+    &::placeholder,
+    input::placeholder {
+        font-size: 13px;
+        color: $neutral-6;
+    }
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-picker {
+    &:focus,
+    &.ant-input-focused,
+    &.ant-input-affix-wrapper-focused,
+    &.ant-picker-focused {
+        @include focus-ring;
+
+        background: #fff;
+    }
+}
+
+.ant-input-affix-wrapper {
+    .ant-input {
+        padding: 0;
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .ant-input-prefix,
+    .ant-input-suffix {
+        color: $neutral-6;
+    }
+}
+
+.ant-input-group {
+    &-addon {
+        font-weight: 500;
+        color: $neutral-7;
+        background: linear-gradient(180deg, var(--theme-panel-subtle) 0%, var(--theme-panel-muted) 100%);
+        border-color: var(--theme-control-border);
+    }
+}
+
+.ant-input-search {
+    .ant-input-search-button {
+        &.ant-btn-primary {
+            box-shadow: none;
+        }
+    }
+}
+
+.ant-input-textarea {
+    textarea.ant-input {
+        min-height: 88px;
+        line-height: 1.6;
+        resize: vertical;
+    }
+}
+
+.ant-input-number {
+    width: 100%;
+
+    &-input {
+        height: 34px;
+        color: $neutral-8;
+    }
+
+    &-focused {
+        @include focus-ring;
+
+        background: #fff;
+    }
+
+    &-handler-wrap {
+        background: linear-gradient(180deg, #fbfdff 0%, var(--theme-panel-subtle) 100%);
+        border-left: 1px solid rgba(123, 149, 177, 0.16);
+    }
+
+    &-handler {
+        &:hover {
+            color: var(--ant-primary-color);
+            background: rgba(var(--theme-primary-rgb), 0.08);
+        }
+
+        &:active {
+            background: rgba(var(--theme-primary-rgb), 0.14);
+        }
+    }
+}
+
+.ant-picker {
+    .ant-picker-input > input::placeholder {
+        color: $neutral-6;
+    }
+
+    .ant-picker-active-bar {
+        background: var(--ant-primary-color);
+    }
+}
+
+.ant-input-password {
+    .ant-input-suffix {
+        .anticon {
+            color: $neutral-6;
+            transition: color $transition-fast;
+
+            &:hover {
+                color: var(--ant-primary-color);
+            }
+        }
+    }
+}
+
+.ant-input-clear-icon {
+    font-size: 12px;
+    color: $neutral-6;
+
+    &:hover {
+        color: $neutral-8;
+    }
+}

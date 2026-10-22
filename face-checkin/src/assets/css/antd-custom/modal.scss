@@ -1,0 +1,129 @@
+/**
+ * 弹窗和抽屉主题重构
+ */
+
+.ant-modal {
+    &-content {
+        @include glass-surface;
+
+        overflow: hidden;
+        border-radius: $radius-xl;
+    }
+
+    &-header {
+        padding: $spacing-lg $spacing-xl;
+        background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.08) 0%, rgba(255, 255, 255, 0.42) 100%);
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+        border-radius: $radius-xl $radius-xl 0 0;
+    }
+
+    &-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: $neutral-8;
+    }
+
+    &-close {
+        color: $neutral-6;
+        transition: all $transition-fast;
+
+        &:hover {
+            color: $neutral-8;
+            background: rgba(var(--theme-primary-rgb), 0.08);
+        }
+
+        &-x {
+            width: 48px;
+            height: 48px;
+            font-size: 16px;
+            line-height: 48px;
+        }
+    }
+
+    &-body {
+        padding: $spacing-xl;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    &-footer {
+        padding: $spacing-md $spacing-lg;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(var(--theme-primary-rgb), 0.04) 100%);
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+        border-radius: 0 0 $radius-xl $radius-xl;
+
+        .ant-btn + .ant-btn {
+            margin-left: $spacing-sm;
+        }
+    }
+
+    &-confirm {
+        .ant-modal-body {
+            padding: $spacing-xl;
+        }
+
+        .ant-modal-confirm-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: $neutral-8;
+        }
+
+        .ant-modal-confirm-content {
+            margin-top: $spacing-sm;
+            font-size: 14px;
+            color: $neutral-7;
+        }
+
+        .ant-modal-confirm-btns {
+            margin-top: $spacing-xl;
+
+            .ant-btn + .ant-btn {
+                margin-left: $spacing-sm;
+            }
+        }
+    }
+}
+
+.ant-modal-mask {
+    background:
+        radial-gradient(circle at 30% 20%, rgba(var(--theme-primary-rgb), 0.18), transparent 32%),
+        rgba(4, 15, 28, 0.48);
+    backdrop-filter: blur(8px);
+}
+
+.ant-drawer {
+    &-content {
+        background: transparent;
+    }
+
+    &-header {
+        padding: $spacing-lg $spacing-xl;
+        background: #fff;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+    }
+
+    &-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: $neutral-8;
+    }
+
+    &-close {
+        color: $neutral-6;
+
+        &:hover {
+            color: $neutral-9;
+        }
+    }
+
+    &-body {
+        padding: $spacing-xl;
+        background: var(--theme-panel-bg);
+    }
+
+    &-footer {
+        padding: $spacing-md $spacing-lg;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.42) 0%, rgba(var(--theme-primary-rgb), 0.04) 100%);
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+    }
+}

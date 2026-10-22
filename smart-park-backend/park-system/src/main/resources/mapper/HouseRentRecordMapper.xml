@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.HouseRentRecordMapper">
+
+    <sql id="bindRecordRelTables">
+        sys_house_rent_record
+        shrr
+        left join sys_company sc on sc.id = shrr.company_id
+        left join sys_house sh on sh.id = shrr.house_id
+        left join sys_building sb on sb.id = sh.building_id
+        left join sys_organization sp on sp.id = sc.park_org_id
+    </sql>
+
+    <sql id="bindRecordRelRenewTables">
+        sys_house_rent_renew_record
+        shrrr
+        left join sys_house_rent_record shrr on shrr.id = shrrr.rent_record_id
+        left join sys_company sc on sc.id = shrr.company_id
+        left join sys_house sh on sh.id = shrr.house_id
+        left join sys_building sb on sb.id = sh.building_id
+        left join sys_organization sp on sp.id = sc.park_org_id
+    </sql>
+
+    <select id="pageCompanyHouseBind"
+            resultType="com.crlink.smartpark.system.vo.HouseBindListVO"
+            parameterType="com.crlink.smartpark.system.query.CompanyHouseQuery">
+        select
+        shrr.id,shrr.rent_start_time,shrr.rent_end_time,sh.name houseName,sh.build_area,sh.cover_area,sb.name
+        buildingName,sp.org_name parkOrgName
+        from
+        <include refid="bindRecordRelTables"></include>
+        <where>
+            shrr.company_id = #{companyId}
+            and shrr.bind = 1
+            and shrr.deleted = 0
+            <if test="buildingId != null and buildingId != ''">
+                and sb.id = #{buildingId}
+            </if>
+            <if test="houseId != null and houseId != ''">
+                and sh.id = #{houseId}
+            </if>
+        </where>
+        order by sh.name,sb.name,sp.org_name
+    </select>
+
+    <select id="pageHouseBindRecord"
+            resultType="com.crlink.smartpark.system.vo.HouseBindRecordListVO"
+            parameterType="com.crlink.smartpark.system.query.HouseBindRecordQuery">
+        select
+        shrr.id,shrr.rent_start_time,shrr.rent_end_time,shrr.unbind_time,shrr.bind,sh.name
+        houseName,sh.build_area,sh.cover_area,sb.name buildingName,sp.org_name parkOrgName,sc.name companyName
+        from
+        <include refid="bindRecordRelTables"></include>
+        <where>
+            <if test="parkOrgId != null and parkOrgId != ''">
+                sp.id = #{parkOrgId}
+            </if>
+            <if test="parkOrgIds !=null and parkOrgIds.size()> 0">
+                and sp.id in
+                <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            <if test="buildingId != null and buildingId != ''">
+                and sb.id = #{buildingId}
+            </if>
+            <if test="houseId != null and houseId != ''">
+                and sh.id = #{houseId}
+            </if>
+            <if test="companyName != null and companyName != ''">
+                and sc.name like "%"#{companyName}"%"
+            </if>
+            and shrr.deleted = 0
+        </where>
+        order by shrr.create_time desc,sh.name,sb.name,sp.org_name
+    </select>
+
+    <select id="getCompanyHouseBindById"
+            resultType="com.crlink.smartpark.system.vo.HouseBindVO"
+            parameterType="java.lang.String">
+        select
+        shrr.id,shrr.rent_start_time,shrr.rent_end_time,sh.name houseName,sh.build_area,sh.cover_area,sb.name
+        buildingName,sp.org_name parkOrgName,sc.name companyName
+        from
+        <include refid="bindRecordRelTables"></include>
+        <where>
+            shrr.id = #{id}
+            and shrr.deleted = 0
+        </where>
+    </select>
+
+    <select id="pageHouseRenewBindRecord"
+            resultType="com.crlink.smartpark.system.vo.HouseBindRenewListVO"
+            parameterType="com.crlink.smartpark.system.query.HouseRentRenewRecordQuery">
+        select
+        shrr.rent_start_time,sh.name houseName,sb.name buildingName,sp.org_name parkOrgName,sc.name
+        companyName,shrrr.rent_end_time,shrrr.renew_end_time,shrrr.create_time
+        from
+        <include refid="bindRecordRelRenewTables"></include>
+        <where>
+            shrrr.rent_record_id = #{rentRecordId}
+            and shrrr.deleted = 0
+        </where>
+        order by shrrr.create_time desc
+    </select>
+
+</mapper>

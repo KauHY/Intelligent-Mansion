@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.business.mapper.BusinessInfoMapper">
+    <select id="listBusinessInfoPage">
+        select *
+        from bus_business_info
+        <where>
+
+        </where>
+    </select>
+
+    <select id="queryHouseInfoByBusinessInfoId">
+        select *
+        from bus_house_info bbi
+                 inner join bus_business_house_relation bbhr on bhi.id = bbhr.house_info_id
+        where bbhr.business_info_id = #{businessInfoId}
+    </select>
+
+    <resultMap id="businessInfoVO" type="com.crlink.smartpark.business.vo.BusinessInfoVO" autoMapping="true">
+        <id column="id" property="id"></id>
+        <collection property="businessHouseVO" column="id" select="queryHouseInfoByBusinessInfoId"></collection>
+    </resultMap>
+    <resultMap id="businessHouseVO" type="com.crlink.smartpark.business.vo.BusinessHouseVO" autoMapping="true">
+        <id column="id" property="houseInfoId"></id>
+    </resultMap>
+</mapper>

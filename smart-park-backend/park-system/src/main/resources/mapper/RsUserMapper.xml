@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.RsUserMapper">
+    <select id="listPage" parameterType="com.crlink.smartpark.system.dto.user.RsUserQueryDTO"
+            resultType="com.crlink.smartpark.system.vo.RsUserInfoVO">
+        SELECT
+        ru.id,
+        ru.user_id,
+        u.username,
+        ru.mobile,
+        ru.admin_flag,
+        u.status,
+        ru.real_name,
+        ru.org_id
+        FROM
+        sys_rs_user_info ru
+        LEFT JOIN sys_rs_user u ON ru.user_id = u.id
+        WHERE
+        ru.deleted = 0
+        and ru.org_id in
+        <foreach item="item" index="index" collection="orgIds" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        <if test="params.username != null and params.username != ''">
+            AND u.username like "%"#{params.username}"%"
+        </if>
+        <if test="params.realName != null and params.realName != ''">
+            AND ru.real_name like "%"#{params.realName}"%"
+        </if>
+        <if test="params.mobile != null and params.mobile != ''">
+            AND ru.mobile like "%"#{params.mobile}"%"
+        </if>
+        <if test="params.status != null">
+            AND u.status = #{params.status}
+        </if>
+        ORDER BY
+        u.create_time DESC
+
+    </select>
+
+    <select id="userListBy" resultType="com.crlink.smartpark.system.vo.RsUserListVO">
+        SELECT
+        ru.user_id,
+        ru.real_name
+        FROM
+        sys_rs_user_info ru
+        LEFT JOIN sys_rs_user u ON ru.user_id = u.id
+        LEFT JOIN sys_organization o ON ru.org_id = o.id
+        WHERE
+        ru.deleted = 0
+        <if test="params.roleIds!=null and params.roleIds.size>0">
+            AND u.id IN (
+            SELECT
+            fru.user_id
+            FROM
+            sys_rs_user_role_relation fru
+            WHERE
+            fru.role_id IN <foreach collection="params.roleIds" open="(" separator="," close=")" item="item">
+            #{item}</foreach>)
+        </if>
+        <if test="params.realName != null and params.realName != ''">
+            AND ru.real_name = #{params.realName}
+        </if>
+        ORDER BY
+        u.create_time DESC
+    </select>
+    <select id="listUserByMobile" resultType="com.crlink.smartpark.system.entity.RsUserInfo">
+
+    </select>
+
+    <!--    <select id="listUserByOrg" resultType="com.crlink.smartpark.system.vo.UserDictDTO">-->
+
+    <!--        select-->
+    <!--        u.id userId,-->
+    <!--        u.username username-->
+    <!--        from sys_rs_user u inner join sys_rs_user_info ui-->
+    <!--        on u.id=ui.user_id-->
+    <!--        <where>-->
+    <!--            <choose>-->
+    <!--                <when test="params.orgId !=null and params.orgId !=''">-->
+    <!--                    and ui.org_id=#{params.orgId}-->
+    <!--                </when>-->
+    <!--                <otherwise>-->
+    <!--                    and ui.org_id in-->
+    <!--                    <foreach item="item" index="index" collection="orgIds" open="(" close=")" separator=",">-->
+    <!--                        #{item}-->
+    <!--                    </foreach>-->
+    <!--                </otherwise>-->
+    <!--            </choose>-->
+    <!--            <if test="params.username != null and params.username != ''">-->
+    <!--                and ( u.username like concat('%', #{params.username}, '%'))-->
+    <!--            </if>-->
+    <!--            and u.deleted=0 and ui.deleted=0-->
+    <!--        </where>-->
+    <!--    </select>-->
+
+</mapper>

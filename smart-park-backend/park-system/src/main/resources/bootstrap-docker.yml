@@ -1,0 +1,34 @@
+﻿server:
+  port: 30010
+  servlet:
+    context-path: /smartPark/park-system
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/smart-park'
+spring:
+  application:
+    name: park-system
+  profiles:
+    active: docker
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+      config:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+        enabled: false
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:mysql}:3306/smart-park?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASS:root123}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  redis:
+    host: ${REDIS_HOST:redis}
+    port: 6379
+    database: ${REDIS_DB:0}

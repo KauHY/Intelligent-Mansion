@@ -1,0 +1,22 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 10.200.3.225:80
+        namespace: park-uat
+        username: nacos
+        password: naN7yHCwKXADk96Q
+      config:
+        server-addr: 10.200.3.225:80
+        namespace: park-uat
+        username: nacos
+        password: naN7yHCwKXADk96Q
+        extension-configs[0]:
+          data-id: park-db.yaml
+          refresh: true
+        extension-configs[1]:
+          data-id: park-redis.yaml
+          refresh: true
+        extension-configs[2]:
+          data-id: park-common.yaml
+          refresh: true

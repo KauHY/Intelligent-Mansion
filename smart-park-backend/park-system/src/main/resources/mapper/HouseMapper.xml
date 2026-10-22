@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.HouseMapper">
+
+    <select id="listPage" resultType="com.crlink.smartpark.system.vo.HouseListVO">
+        select
+        sh.id,
+        sh.code,
+        sh.name,
+        sh.floor,
+        sh.floor_type floorType,
+        sh.house_property houseProperty,
+        sh.house_function houseFunction,
+        sh.house_status houseStatus,
+        sh.orientation,
+        sh.cover_area,
+        sh.build_area,
+        sh.park_org_id parkOrgId,
+        sh.building_id buildingId,
+        sp.org_name parkOrgName,
+        sb.name buildingName,
+        sh.remark,
+        sb.total_floor
+        from sys_house sh
+        left join sys_organization sp on sp.id = sh.park_org_id
+        left join sys_building sb on sb.id = sh.building_id
+        where
+        sh.deleted = 0
+        and sp.deleted = 0
+        <if test="houseListDTO.headOrgId != null and houseListDTO.parkOrgId != ''">
+            and sp.head_org_id = #{houseListDTO.headOrgId}
+        </if>
+        <if test="houseListDTO.parkOrgId != null and houseListDTO.parkOrgId != ''">
+            and sh.park_org_id = #{houseListDTO.parkOrgId}
+        </if>
+        <if test="houseListDTO.buildingId != null and houseListDTO.buildingId != ''">
+            and sh.building_id = #{houseListDTO.buildingId}
+        </if>
+        <if test="houseListDTO.houseId != null and houseListDTO.houseId != ''">
+            and sh.id = #{houseListDTO.houseId}
+        </if>
+        <if test="houseListDTO.houseName != null and houseListDTO.houseName != ''">
+            and sh.name like CONCAT('%',#{houseListDTO.houseName},'%')
+        </if>
+        <if test="houseListDTO.houseStatus != null">
+            and sh.house_status = #{houseListDTO.houseStatus}
+        </if>
+        <if test="houseListDTO.houseFunction != null">
+            and sh.house_function = #{houseListDTO.houseFunction}
+        </if>
+        <if test="houseListDTO.notHouseProperty !=null">
+            and sh.house_property &lt;&gt; #{houseListDTO.notHouseProperty}
+        </if>
+        <if test="houseListDTO.noIds !=null and houseListDTO.noIds.size()>0">
+            and sh.id not in
+            <foreach collection="houseListDTO.noIds" open="(" separator="," close=")" item="noId">
+                #{noId}
+            </foreach>
+        </if>
+        <if test="houseListDTO.houseStatusSet !=null and houseListDTO.houseStatusSet.size()>0">
+            and sh.house_status in
+            <foreach collection="houseListDTO.houseStatusSet" open="(" separator="," close=")" item="houseStatus">
+                #{houseStatus}
+            </foreach>
+        </if>
+        <if test="houseListDTO.parkOrgIds!=null and houseListDTO.parkOrgIds.size()>0">
+            and sh.park_org_id in
+            <foreach collection="houseListDTO.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                #{parkOrgId}
+            </foreach>
+        </if>
+        <if test="houseListDTO.needPySort != null and houseListDTO.needPySort == false">
+            order by sh.create_time desc
+        </if>
+        <if test="houseListDTO.needPySort != null and houseListDTO.needPySort == true">
+            order by CONVERT(sb.name USING gbk),CONVERT(sh.name USING gbk) asc
+        </if>
+    </select>
+
+
+    <select id="getDelHouseByParkOrgId" resultType="com.crlink.smartpark.system.vo.HouseListVO">
+        select
+        sh.id
+        from sys_house sh
+        where
+        sh.deleted = 1
+        <if test="houseListDTO.parkOrgId != null and houseListDTO.parkOrgId != ''">
+            and sh.park_org_id = #{houseListDTO.parkOrgId}
+        </if>
+    </select>
+
+
+</mapper>

@@ -1,0 +1,35 @@
+﻿server:
+  port: 8099
+  servlet:
+    context-path: /smartPark
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/smart-park'
+spring:
+  application:
+    name: park-gateway
+  profiles:
+    active: docker
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+      config:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+        username: ${NACOS_USER:nacos}
+        password: ${NACOS_PASS:nacos}
+        enabled: false
+    gateway:
+      routes:
+        - id: park-meeting
+          uri: lb://park-meeting
+          predicates:
+            - Path=/smartPark/park-meeting/**
+        - id: park-system
+          uri: lb://park-system
+          predicates:
+            - Path=/smartPark/park-system/**

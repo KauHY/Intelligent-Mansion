@@ -1,0 +1,8 @@
+//添加park-industrial服务的路由
+  - id: industrial
+uri: lb://park-industrial
+predicates:
+  - Path=/smartPark/park-industrial/**
+
+//白名单
+/smartPark/park-common/proxy

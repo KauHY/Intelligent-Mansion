@@ -1,0 +1,12 @@
+server:
+  port: 30000
+  servlet:
+    context-path: /smartPark/park-common
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/smart-common'
+spring:
+  application:
+    name: park-common
+  profiles:
+    active: dev
