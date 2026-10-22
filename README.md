@@ -1,221 +1,139 @@
-# IntelligentMansion 智能楼宇人像采集
+# 🏙️ Intelligent Mansion — Pixel Face Check-In
 
-本项目使用 edu-riscv64 开发板运行 XiUOS / XiZi，通过 K210 和内置 FACE 模型进行 YOLOv2 人脸检测。图像采用 **W5500 网口有线 TCP** 上传至 Windows 电脑，电脑保存 PNG 后回传确认，开发板显示采集成功提示。
+<div align="center">
+  <img src="./docs/readme-banner.svg" alt="Intelligent Mansion Pixel HUD" width="100%" />
+  <br/><br/>
+  <img alt="Branch" src="https://img.shields.io/badge/branch-front2back-8A2BE2?style=for-the-badge&labelColor=0b1220" />
+  <img alt="Status" src="https://img.shields.io/badge/end--to--end-online-00FFC6?style=for-the-badge&labelColor=0b1220" />
+  <img alt="Stack" src="https://img.shields.io/badge/K210%20%2B%20Spring%20%2B%20Vue-48B2FF?style=for-the-badge&labelColor=0b1220" />
+</div>
 
-## 采集流程
+> **当前状态：人脸采集、识别、签到、回显闭环已跑通。**  
+> 首期面向单会议室、单终端的本地部署；后续向多人、多终端和园区平台扩展。
 
-1. 连续 **5 个检测帧**都有人脸后，上传第 5 帧的完整图像；中间出现无脸帧就重新计数。
-2. 图像在绘制检测框之前发送，当前尺寸为 320×240、RGB565。
-3. 电脑校验图片长度和 CRC32，将 PNG 保存到项目 `tmp_photos/`。
-4. 电脑回传匹配的图片 ID 和 CRC，开发板收到后在 LCD 显示“人像已完成采集”两秒。
-5. 持续有人仅采集一次；连续 **10 个检测帧**无脸后，才允许再次触发。传输失败后同样需要满足此条件，或复位开发板后再试。
+---
 
-帧数不是秒数，实际确认时间取决于检测速度。此流程只上传一张照片，不缓存前 4 帧，也不判断连续帧是否属于同一个人。连接、传图和成功提示均在摄像头线程中执行，期间检测会暂停。
+## 🕹️ 系统快照
 
-## 硬件与网络
+| 模块 | 技术栈 | 现状 |
+| --- | --- | --- |
+| 🧠 **现场终端** | XiUOS / XiZi + K210 KPU + OV 摄像头 | YOLOv2 连续帧检测，`320×240 RGB565` 上传 |
+| 🌐 **通信链路** | W5500 硬件 TCP + 自定义 `XPH1` 协议 | CRC32 校验、ACK 确认、识别结果 JSON 回传 |
+| 🖥️ **PC 桥接** | Python + Pillow | 接收图像、方向校正、JPEG 转换、调用后端 |
+| 👤 **人脸识别** | YuNet + SFace | 单人脸特征提取、余弦相似度、`0.50` 阈值 |
+| 🗄️ **考勤业务** | Spring Cloud + MyBatis-Plus + MySQL | 人员审核、会议名单、幂等、签到状态机 |
+| 🎛️ **管理前端** | Vue + Ant Design Vue | 人员、会议、详情页、上传与签到记录 |
 
-将开发板的 W5500 RJ45 网口接到电脑有线网口，或将两端接入同一局域网交换机。当前使用静态 IPv4，不使用 DHCP。
+```mermaid
+flowchart LR
+    A[K210 Camera] --> B[YOLOv2 Face Detect]
+    B --> C[W5500 TCP]
+    C --> D[PC Bridge 9000]
+    D --> E[Gateway 8099]
+    E --> F[Meeting Service 30011]
+    F --> G[Face Inference 8901]
+    G --> H[(MySQL smart-park)]
+    F --> I[Vue Admin 9001]
+    F --> J[Recognition JSON]
+    J --> K[LCD / Board Toast]
+```
 
-| 项目 | 默认值 |
+## 🚀 快速启动
+
+### 1️⃣ 启动容器化后端
+
+```powershell
+cd code/docker
+docker compose up --build -d
+docker compose ps
+```
+
+### 2️⃣ 启动本机设备控制
+
+```powershell
+cd code
+.\Start-Device-Control.cmd
+```
+
+这会启动 `9010` 控制服务、监听板端串口日志，并在会议详情页按需启动 `9000` 桥接。
+
+### 3️⃣ 打开管理端
+
+```text
+http://localhost:9001
+```
+
+默认管理流程：
+
+1. 登录后进入 **人脸识别签到**。
+2. 新增人员并上传现场人脸照片。
+3. 在人员列表中点击 **通过**，只有审核通过人员才会参与识别。
+4. 创建会议、选择与会人员。
+5. 打开会议详情页，点击 **启动本会议识别**。
+
+## 🔌 关键端口
+
+| 服务 | 端口 | 用途 |
+| --- | ---: | --- |
+| `face-frontend` | `9001` | 管理页面 |
+| `park-gateway` | `8099` | 统一 API 网关 |
+| `park-system` | `30010` | 登录、用户、权限 |
+| `park-meeting` | `30011` | 会议与签到业务 |
+| `face-inference` | `8901` | 人脸检测与特征比对 |
+| `device_control.py` | `9010` | 本机设备控制 |
+| `api_bridge.py` | `9000` | 板端图像桥接 |
+| MySQL | `3307 → 3306` | 业务数据库 |
+| Redis | `6380 → 6379` | 缓存 |
+| Nacos | `8850 → 8848` | 注册中心 |
+
+## ✨ 已实现闭环
+
+- ✅ 稳定人脸触发：连续 5 帧有人脸后上传第 5 帧。
+- ✅ 图像上传：CRC32 校验、PC ACK、图片保存与结果回传。
+- ✅ 识别比对：YuNet 检测 + SFace 特征 + 余弦相似度。
+- ✅ 业务幂等：请求、与会人员重复签到、非成功事件去重。
+- ✅ 审核控制：只有启用且审核通过的人员参与识别。
+- ✅ 管理页面：人员管理、会议管理、详情页、记录与导出。
+- ✅ 板端反馈：识别结果 JSON 回传，PC 可按会议启停桥接。
+
+## 🧪 识别规则
+
+| 分类 | 值 | 业务含义 |
+| --- | ---: | --- |
+| 与会人员 | `1` | 命中且属于当前会议 |
+| 非与会人员 | `2` | 命中但不在当前会议名单 |
+| 非记录人员 | `3` | 未命中已审核人员 |
+
+签到状态包括成功、重复签到、无权限、未识别、时间窗外、迟到与处理失败。当前相似度阈值为 `0.50`，模型为 `SFace 2021dec`。
+
+## 📦 主要入口
+
+| 路径 | 说明 |
 | --- | --- |
-| 电脑有线网卡 IP | `192.168.50.1` |
-| 开发板 IP | `192.168.50.2` |
-| 两端子网掩码 | `255.255.255.0` |
-| 板端网关 | `0.0.0.0`，同网段直连无需网关 |
-| TCP 接收端口 | `9000` |
+| [`pc_bridge/api_bridge.py`](pc_bridge/api_bridge.py) | 正式识别桥接 |
+| [`pc_bridge/device_control.py`](pc_bridge/device_control.py) | 设备控制服务 |
+| [`face_match/service.py`](face_match/service.py) | 推理 HTTP 服务 |
+| [`smart-park-backend/`](smart-park-backend/) | Spring Cloud 后端 |
+| [`face-checkin/`](face-checkin/) | Vue 管理端 |
+| [`docker/docker-compose.yml`](docker/docker-compose.yml) | 本地编排 |
+| [`XiUOS/`](XiUOS/) | K210/XiUOS 板端代码 |
 
-Windows 按 `Win+R`，运行 `ncpa.cpl`，打开实际接网线的适配器属性，在 IPv4 属性中设置地址和掩码。独立直连时网关、DNS 可留空。若使用已有局域网，应按实际网段分配不同且未被占用的地址。
+## 🛠️ 当前边界
 
-板端配置位于 [photo_ethernet_config.h](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_ethernet_config.h)：
+- 🔒 `/verify` 目前在网关白名单中，设备 token 适合联调，生产需要设备签名或独立凭据。
+- 🖼️ 人员照片仍以 base64 存库，后续应迁移到对象存储或受控文件服务。
+- 🧮 识别为逐人比对，后续应只提取一次现场特征并批量比对。
+- 🧾 CSV 导出仍需补齐公式注入防护。
+- 📡 前端目前轮询刷新，后续可升级 SSE/WebSocket。
 
-```c
-#define PHOTO_ETH_IP       {192, 168, 50, 2}
-#define PHOTO_ETH_NETMASK  {255, 255, 255, 0}
-#define PHOTO_ETH_GATEWAY  {0, 0, 0, 0}
-#define PHOTO_ETH_PC       {192, 168, 50, 1}
-#define PHOTO_ETH_PORT 9000
-```
+## 🧭 分支说明
 
-`PHOTO_ETH_PC` 必须填写**实际运行接收程序的电脑有线网卡地址**。修改头文件后需重新编译烧录；程序每次传图都会应用这份网络配置。多块板需要分配不同的 IP 和 `PHOTO_ETH_MAC`。
+当前 README 属于 `front2back` 分支，主要聚焦**端到端人脸识别签到链路**，不包含完整智慧园区所有业务能力的交付承诺。
 
-沿用板级引脚：SPI1 CLK=9、D0=11、D1=10、SS0=12，W5500 RST=13、INT=14。图像程序独占 W5500 socket 2 和网络配置，不要同时运行网口测试、iperf 或占用同一 SPI1 设备的示例。
-
-## 固件配置、编译与烧录
-
-在原来已调通摄像头和 YOLO 的构建环境中更新源码，保留现有摄像头、KPU、LCD、shell、POSIX 和互斥量配置。Linux 区分目录名大小写：本仓库为 `App_Framework`，已有虚拟机工程可能为 `APP_Framework`，同步时沿用目标目录名称。
-
-有线传输相关文件：
-
-```text
-XiUOS/
-├── App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/
-│   ├── Kconfig
-│   ├── photo_bridge.h
-│   ├── photo_ethernet.h
-│   └── photo_ethernet_config.h
-└── Ubiquitous/XiZi_IIoT/board/edu-riscv64/third_party_driver/ethernet/
-    └── connect_w5500.c
-```
-
-先备份编译目录的 `.config`、`xsconfig.h` 和板级 `board/edu-riscv64/.config`。**menuconfig 会先从板级 `.config` 复制配置**；如果已验证的配置仅在编译目录中，备份后先同步到板级配置，避免被默认值覆盖。
-
-进入 `XiUOS/Ubiquitous/XiZi_IIoT`，执行：
-
-```sh
-make BOARD=edu-riscv64 menuconfig
-```
-
-按 `/` 搜索配置名，确认以下设置并保存：
-
-```text
-CONFIG_BSP_USING_UART=y
-CONFIG_BSP_USING_UART_HS=y
-CONFIG_BSP_USING_SPI=y
-CONFIG_BSP_USING_SPI1=y
-CONFIG_BSP_SPI1_USING_SS0=y
-CONFIG_BSP_USING_WIZCHIP=y
-CONFIG_BSP_USING_W5500=y
-CONFIG_BSP_USING_LCD=y
-CONFIG_USING_K210_YOLOV2_DETECT=y
-CONFIG_K210_MODEL_BUILTIN=y
-CONFIG_PHOTO_ETHERNET_TCP=y
-CONFIG_PHOTO_FACE_CONFIRM_FRAMES=5
-CONFIG_PHOTO_FACE_ABSENT_FRAMES=10
-# CONFIG_PHOTO_WIFI_TCP is not set
-# CONFIG_MOUNT_USB is not set
-# CONFIG_SEPARATE_COMPILE is not set
-```
-
-上述为关键配置，不是可覆盖整个工程的完整 `.config`。依赖不满足而隐藏的关闭项，可能不会写入文件。连续确认和无脸恢复帧数可设为 1–120。
-
-- **控制台必须保留**：`edu-riscv64 feature → Using UART device → Enable High Speed UART`。三个名称保持默认 `uart0`、`uart0_drv`、`uart0_dev0`，用于日志和命令交互。
-- **模型使用内置版本**：无需挂载 U 盘。如果 `mount usb` 显示 `-*-`，先在 `Using CH376 device` 下关闭 `Using CH376 USB`，再到 `config default board resources → config board peripheral` 取消 `mount usb`。
-- **通过 menuconfig 保存退出**：它会同步生成编译配置头，不要只手改 `.config`。
-
-编译：
-
-```sh
-make BOARD=edu-riscv64
-```
-
-成功后使用 K-Flash 烧录本次生成的固件。修改源码或配置需要重新烧录；日常启动只需上电或复位。
-
-## 启动电脑接收端
-
-实际接收电脑需要 Python 3.10 或更新版本。双击 [Start-Ethernet-Photo.cmd](Start-Ethernet-Photo.cmd)，脚本优先使用项目 `.venv`，否则调用系统 Python。接收程序无需额外 Python 包。
-
-也可在项目根目录运行：
-
-```powershell
-python -u pc_bridge/tcp_bridge.py --port 9000
-```
-
-看到以下输出后，再让开发板触发采集：
-
-```text
-[监听 TCP] 0.0.0.0:9000
-```
-
-保持窗口打开，按 `Ctrl+C` 停止。图片默认写入接收程序所在项目的 `tmp_photos/`，也可指定 `--output`。部署接收端时保留 `Start-Ethernet-Photo.cmd` 和 `pc_bridge/` 的相对位置；`tcp_bridge.py` 依赖同目录 `bridge.py` 中的图像转换函数。
-
-若 Windows 防火墙阻止连接，可在**接收电脑的管理员 PowerShell**中添加规则。以下地址对应默认配置，使用其他地址时同步修改：
-
-```powershell
-New-NetFirewallRule -DisplayName "XiUOS Photo TCP 9000" `
-  -Direction Inbound -Action Allow -Protocol TCP `
-  -LocalAddress 192.168.50.1 -LocalPort 9000 `
-  -RemoteAddress 192.168.50.2 -Profile Any
-```
-
-## PC 端人脸比对（可选）
-
-采集到照片后，可在电脑上判断两张图是否为同一人。使用 OpenCV DNN 的 YuNet 人脸检测和 SFace 特征比对，CPU 运行，不依赖开发板。
-
-安装依赖（一次即可）：
-
-```powershell
-python -m pip install -r face_match/requirements.txt
-```
-
-首次运行会自动从 OpenCV Zoo 下载模型到 `face_match/models/`，共约 39 MB。离线时可手动下载并放入该目录，文件名和地址见 [face_match/README.md](face_match/README.md)。
-
-```powershell
-python -m face_match tmp_photos\face_A.png tmp_photos\face_B.png
-```
-
-标准输出只有一行 `success` 或 `failed`；相似度、阈值、人脸数量和失败原因输出到标准错误。默认阈值为 0.363，可用 `--threshold` 修改。退出码：0 匹配，1 不匹配，2 参数、文件或模型错误。
-
-更多说明、阈值校准和 Python 调用方式见 [face_match/README.md](face_match/README.md)。
-
-## 查看板端日志与检查连接
-
-串口用于调试日志和命令，可与网线接收程序同时使用。[Open-Board-Terminal.cmd](Open-Board-Terminal.cmd) 默认连接 COM3，115200 波特率、8N1；串口号不同则修改脚本。首次启动该终端脚本可能需要联网安装 pySerial。烧录时关闭占用同一串口的终端，烧录后重新打开并按 RESET 查看启动日志。
-
-启动后应出现：
-
-```text
-[photo] confirm=5 consecutive frames, rearm=10 absent frames
-[photo-ethernet] W5500 TCP enabled
-```
-
-达到连续检测条件后，诊断输出包括：
-
-```text
-[photo-ethernet v2] id=1 chip=0x04 ... link=UP
-[photo-ethernet] board=192.168.50.2 mask=255.255.255.0 gateway=0.0.0.0
-[photo-ethernet] target=192.168.50.1:9000 ...
-```
-
-成功时电脑应显示保存路径，板端应打印 `[photo-ethernet] PC saved ...` 并显示 LCD 提示。`link=UP` 只代表物理链路已建立，不代表 TCP 已连接。
-
-连接失败时，在**实际接收电脑**执行：
-
-```powershell
-ipconfig
-netstat -ano | findstr :9000
-ping -n 4 192.168.50.2
-arp -a
-```
-
-确认有线 IP 与板端 `target` 一致，9000 端口存在 `LISTENING`。ping 和 ARP 检查应在板端至少尝试过一次上传后进行，因为程序会在尝试传图时应用配置地址。在 `192.168.50.1` 对应接口下检查板端 ARP 记录，默认板端 MAC 为 `02-58-49-55-00-01`。ping 失败需结合 ARP 和监听结果判断，不能单独归因于防火墙。
-
-| 现象 | 检查方法 |
-| --- | --- |
-| `USB lab requires CH376...` 编译错误 | 内置模型模式下关闭 `Using CH376 USB` 和 `MOUNT_USB`，保存配置 |
-| `SERIAL_BUS_NAME_0` 等宏未定义 | 恢复 `BSP_USING_UART` 和 `BSP_USING_UART_HS`，保存配置 |
-| 接收窗口没有监听提示 | 用命令行直接启动 `tcp_bridge.py`，查看 Python 或端口占用错误 |
-| `chip` 不是 `0x04` | 检查 W5500 SPI、供电和复位 |
-| `link=DOWN` | 检查网线、RJ45 接口及电脑网口是否启用 |
-| `failed stage=connect` | 核对目标 IP、端口监听、ARP 和防火墙，保留完整 `reason/SR/IR` 日志 |
-| `rc=0`、`SR=0x13` 后超时 | 非阻塞接口仍在处理，socket 停在 INIT，不表示连接成功 |
-| 检测画面暂时停顿 | 连接和传输在检测线程中等待；应用层连接上限 10 秒、发送 30 秒、保存确认 10 秒 |
-| 有人脸但不触发 | 检查是否连续满足 5 帧；已尝试过则先连续 10 帧无脸，再重新进入 |
-| PNG 已保存但没有成功提示 | 检查保存确认是否到达板端以及 LCD 配置，保存本身不等于板端已收到确认 |
-
-底层驱动仍有硬件寄存器轮询，SPI/芯片异常需另行排查，不能用上述应用层超时保证覆盖所有硬件故障。
-
-## 验证状态
-
-- 已通过有线固件头文件的主机 C 测试：连续帧确认、计数重置、再次触发、短写、分片 ACK、错误 ID/CRC、超时、断连、芯片版本和链路检查。
-- 已通过 C 数据包到 Python TCP 接收器的 PNG 保存及 ACK 联动测试，以及接收端相关回归测试。
-- 实板已运行人脸检测和有线诊断代码，最新日志显示 `chip=0x04`、`link=UP`，但仍在 TCP 连接阶段超时；**实板图片上传、LCD 成功提示和实际速率尚未验收**。
-
-主机测试不能代替实板验收。可在项目根目录运行以下测试，GCC 路径按实际安装位置修改：
-
-```powershell
-python pc_bridge/test_ethernet_firmware.py "D:/Software Install/CodeBlocks/MinGW/bin/gcc.exe"
-python -m unittest discover -s pc_bridge -p "test_tcp_bridge.py" -v
-```
-
-## 主要文件
-
-| 路径 | 用途 |
-| --- | --- |
-| [Start-Ethernet-Photo.cmd](Start-Ethernet-Photo.cmd) | 启动电脑 TCP 图片接收端 |
-| [Open-Board-Terminal.cmd](Open-Board-Terminal.cmd) | 打开开发板调试终端 |
-| [pc_bridge/tcp_bridge.py](pc_bridge/tcp_bridge.py) | TCP 接收、校验、保存和确认 |
-| [face_match/](face_match/) | PC 端 YuNet + SFace 双图人脸比对 |
-| [photo_ethernet.h](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_ethernet.h) | 板端有线传输与连接诊断 |
-| [photo_bridge.h](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_bridge.h) | 连续帧触发及 LCD 保存提示 |
-| `tmp_photos/` | 接收的 PNG 照片 |
-| `output/` | 替换包和本地产物 |
+<div align="center">
+  <sub>
+    <b>PIXEL HUD · LOCAL-FIRST · FACE CHECK-IN</b>
+    <br/>
+    <code>K210</code> · <code>W5500</code> · <code>XiUOS</code> · <code>SFace</code> · <code>Spring Cloud</code> · <code>Vue</code>
+  </sub>
+</div>
