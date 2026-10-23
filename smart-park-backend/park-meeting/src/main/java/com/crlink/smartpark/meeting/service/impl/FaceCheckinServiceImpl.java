@@ -60,8 +60,6 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             "FACE_INFERENCE_URL", "http://face-inference:8901/match");
     private static final String INFERENCE_EXTRACT_URL = System.getenv().getOrDefault(
             "FACE_INFERENCE_EXTRACT_URL", INFERENCE_URL.replaceFirst("/match/?$", "/extract"));
-    private static final String INFERENCE_MATCH_FEATURE_URL = System.getenv().getOrDefault(
-            "FACE_INFERENCE_MATCH_FEATURE_URL", INFERENCE_URL.replaceFirst("/match/?$", "/match-feature"));
     private static final String INFERENCE_BATCH_URL = System.getenv().getOrDefault(
             "FACE_INFERENCE_BATCH_URL", INFERENCE_URL.replaceFirst("/match/?$", "/match-batch"));
 
@@ -106,7 +104,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                         : priorStatus == STATUS_SUCCESS || priorStatus == STATUS_ALREADY || priorStatus == STATUS_NOT_STARTED
                         ? CATEGORY_MEMBER : null);
                 result.setMeetingReserveId(dto.getMeetingReserveId());
-                MeetingReserve priorMeeting = meetingReserveService.getById(dto.getMeetingReserveId());
+                MeetingReserve priorMeeting = getActiveMeeting(dto.getMeetingReserveId());
                 if (priorMeeting != null) { result.setMeetingSubject(priorMeeting.getMeetingSubject()); }
                 if (existingReq.getPersonId() != null) {
                     FaceCheckinPerson priorPerson = getById(existingReq.getPersonId());
@@ -149,7 +147,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             result.setEmployeeNo(matched.getEmployeeNo());
             result.setPersonType(matched.getPersonType());
             result.setMeetingReserveId(dto.getMeetingReserveId());
-            MeetingReserve currentMeeting = meetingReserveService.getById(dto.getMeetingReserveId());
+            MeetingReserve currentMeeting = getActiveMeeting(dto.getMeetingReserveId());
             if (currentMeeting != null) { result.setMeetingSubject(currentMeeting.getMeetingSubject()); }
 
             FaceCheckinMeetingMember member = memberMapper.selectOne(
@@ -201,7 +199,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             }
 
             LocalDateTime now = LocalDateTime.now();
-            MeetingReserve reserve = meetingReserveService.getById(dto.getMeetingReserveId());
+            MeetingReserve reserve = getActiveMeeting(dto.getMeetingReserveId());
             String remark = "";
             LocalDateTime attendanceEnd = reserve != null ? reserve.getAttendanceEndTime() : null;
             
@@ -318,7 +316,15 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (StringUtils.isBlank(photoBase64)) {
             return null;
         }
+        /* 比对只需要 face_vector；photo_path（约 37KB/人）无关比对，排除避免每次刷脸全量加载。 */
         List<FaceCheckinPerson> persons = list(new LambdaQueryWrapper<FaceCheckinPerson>()
+                .select(FaceCheckinPerson::getId,
+                        FaceCheckinPerson::getPersonName,
+                        FaceCheckinPerson::getEmployeeNo,
+                        FaceCheckinPerson::getPersonType,
+                        FaceCheckinPerson::getStatus,
+                        FaceCheckinPerson::getAuditStatus,
+                        FaceCheckinPerson::getFaceVector)
                 .eq(FaceCheckinPerson::getStatus, 1)
                 .eq(FaceCheckinPerson::getAuditStatus, 1));
         if (persons.isEmpty()) {
@@ -360,15 +366,6 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         return -1;
     }
 
-    private double comparePhotoToTemplate(String photoBase64, String faceVector) {
-        if (StringUtils.isBlank(faceVector)) {
-            return -1.0;
-        }
-        return faceVector.startsWith("data:image/")
-                ? callInferenceService(photoBase64, faceVector)
-                : callInferenceFeatureService(photoBase64, faceVector);
-    }
-
     private String extractFaceFeature(String photoBase64) {
         try {
             org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
@@ -393,95 +390,6 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         } catch (Exception e) {
             log.error("Face feature extraction failed", e);
             throw new IllegalArgumentException("人脸特征提取服务不可用");
-        }
-    }
-
-    private double callInferenceFeatureService(String photoBase64, String featureBase64) {
-        try {
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            Map<String, String> body = new java.util.HashMap<>();
-            body.put("photoBase64", photoBase64);
-            body.put("templateFeatureBase64", featureBase64);
-            org.springframework.http.HttpEntity<Map<String, String>> entity = new org.springframework.http.HttpEntity<>(body, headers);
-            org.springframework.http.ResponseEntity<Map> response = new org.springframework.web.client.RestTemplate()
-                    .postForEntity(INFERENCE_MATCH_FEATURE_URL, entity, Map.class);
-            Map result = response.getBody();
-            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
-                Object sim = result.get("similarity");
-                double similarity = sim instanceof Number ? ((Number) sim).doubleValue() : -1.0;
-                log.info("Face feature match faceCount={} similarity={}", result.get("faceCount1"), similarity);
-                return similarity;
-            }
-            log.info("Face feature match rejected reason={}", result != null ? result.get("reason") : "empty");
-            return -1.0;
-        } catch (Exception e) {
-            log.warn("Face feature match call failed: {}", e.getMessage());
-            return -1.0;
-        }
-    }
-
-    /**
-     * Call the Python face inference microservice to compare two base64 images.
-     * Returns similarity (0.0-1.0), or -1.0 on failure.
-     */
-    private double callInferenceService(String photoBase64, String templateBase64) {
-        try {
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            Map<String, String> body = new java.util.HashMap<>();
-            body.put("photoBase64", photoBase64);
-            body.put("templateBase64", templateBase64);
-            org.springframework.http.HttpEntity<Map<String, String>> entity = new org.springframework.http.HttpEntity<>(body, headers);
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            org.springframework.http.ResponseEntity<Map> response = restTemplate.postForEntity(
-                    INFERENCE_URL, entity, Map.class);
-            Map result = response.getBody();
-            if (result != null && Boolean.TRUE.equals(result.get("success"))) {
-                Object sim = result.get("similarity");
-                double similarity = sim instanceof Number ? ((Number) sim).doubleValue() : -1.0;
-                log.info("Face legacy photo match faceCount1={} faceCount2={} similarity={}",
-                        result.get("faceCount1"), result.get("faceCount2"), similarity);
-                return similarity;
-            }
-            log.info("Face legacy photo match rejected reason={}", result != null ? result.get("reason") : "empty");
-            return -1.0;
-        } catch (Exception e) {
-            log.warn("Face inference service call failed: {}", e.getMessage());
-            return -1.0;
-        }
-    }
-
-    /**
-     * Compute cosine similarity between two face feature vectors (base64 encoded doubles).
-     * Returns -1.0 if either vector is empty or dimension mismatch.
-     */
-    private double cosineSimilarity(String vectorA, String vectorB) {
-        if (StringUtils.isBlank(vectorA) || StringUtils.isBlank(vectorB)) {
-            return -1.0;
-        }
-        try {
-            byte[] bytesA = java.util.Base64.getDecoder().decode(vectorA);
-            byte[] bytesB = java.util.Base64.getDecoder().decode(vectorB);
-            int len = Math.min(bytesA.length, bytesB.length) / 8;
-            if (len == 0) { return -1.0; }
-            java.nio.ByteBuffer bufA = java.nio.ByteBuffer.wrap(bytesA);
-            java.nio.ByteBuffer bufB = java.nio.ByteBuffer.wrap(bytesB);
-            double dotProduct = 0.0;
-            double normA = 0.0;
-            double normB = 0.0;
-            for (int i = 0; i < len; i++) {
-                double a = bufA.getDouble();
-                double b = bufB.getDouble();
-                dotProduct += a * b;
-                normA += a * a;
-                normB += b * b;
-            }
-            if (normA == 0 || normB == 0) { return -1.0; }
-            return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
-        } catch (Exception e) {
-            log.warn("cosineSimilarity error: {}", e.getMessage());
-            return -1.0;
         }
     }
 
@@ -513,7 +421,12 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         person.setPhone(dto.getPhone());
         person.setPersonType(dto.getPersonType());
         if (StringUtils.isBlank(dto.getPhotoBase64())) {
-            throw new IllegalArgumentException("人脸照片不能为空");
+            if (person.getId() == null) {
+                throw new IllegalArgumentException("人脸照片不能为空");
+            }
+            /* 编辑时不重传照片：保留原照片与原特征，仅更新基础字段。 */
+            person.setUpdateTime(LocalDateTime.now());
+            return saveOrUpdate(person);
         }
         String faceFeature = extractFaceFeature(dto.getPhotoBase64());
         person.setPhotoPath(dto.getPhotoBase64());
@@ -540,8 +453,15 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 FaceCheckinPerson::getAuditStatus,
                 FaceCheckinPerson::getCreateTime);
         List<FaceCheckinPerson> list = list(wrapper.orderByDesc(FaceCheckinPerson::getCreateTime));
+        /* list 实际是 PageHelper 的 Page，先包 PageInfo 保留 total/pages 等分页元数据，再替换为 VO 内容。 */
+        PageInfo<FaceCheckinPerson> personPage = new PageInfo<>(list);
         List<FaceCheckinPersonVO> vos = list.stream().map(this::toPersonVO).collect(Collectors.toList());
-        return new PageInfo<>(vos);
+        PageInfo<FaceCheckinPersonVO> voPage = new PageInfo<>(vos);
+        voPage.setTotal(personPage.getTotal());
+        voPage.setPages(personPage.getPages());
+        voPage.setPageNum(personPage.getPageNum());
+        voPage.setPageSize(personPage.getPageSize());
+        return voPage;
     }
 
         @Override
@@ -553,25 +473,19 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                         .orderByAsc(FaceCheckinMeetingMember::getCreateTime));
         List<FaceCheckinAttendance> events = attendanceMapper.selectList(
                 new LambdaQueryWrapper<FaceCheckinAttendance>()
+                        .select(FaceCheckinAttendance::getId,
+                                FaceCheckinAttendance::getMeetingReserveId,
+                                FaceCheckinAttendance::getPersonId,
+                                FaceCheckinAttendance::getPersonName,
+                                FaceCheckinAttendance::getCheckinTime,
+                                FaceCheckinAttendance::getStatus,
+                                FaceCheckinAttendance::getRequestId,
+                                FaceCheckinAttendance::getDeviceId,
+                                FaceCheckinAttendance::getRemark,
+                                FaceCheckinAttendance::getParticipantCategory,
+                                FaceCheckinAttendance::getCreateTime)
                         .eq(FaceCheckinAttendance::getMeetingReserveId, meetingReserveId)
-                        .orderByAsc(FaceCheckinAttendance::getCheckinTime))
-                .stream()
-                .map(event -> {
-                    FaceCheckinAttendance light = new FaceCheckinAttendance();
-                    light.setId(event.getId());
-                    light.setMeetingReserveId(event.getMeetingReserveId());
-                    light.setPersonId(event.getPersonId());
-                    light.setPersonName(event.getPersonName());
-                    light.setCheckinTime(event.getCheckinTime());
-                    light.setStatus(event.getStatus());
-                    light.setRequestId(event.getRequestId());
-                    light.setDeviceId(event.getDeviceId());
-                    light.setRemark(event.getRemark());
-                    light.setParticipantCategory(event.getParticipantCategory());
-                    light.setCreateTime(event.getCreateTime());
-                    return light;
-                })
-                .collect(Collectors.toList());
+                        .orderByAsc(FaceCheckinAttendance::getCheckinTime));
         Map<String, FaceCheckinAttendance> attendanceByPerson = new java.util.LinkedHashMap<>();
         for (FaceCheckinAttendance event : events) {
             if (StringUtils.isBlank(event.getPersonId()) || attendanceByPerson.containsKey(event.getPersonId())) {
@@ -604,9 +518,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, FaceCheckinPerson> exportPersonMap = exportPersonIds.isEmpty()
-                ? Collections.emptyMap()
-                : listByIds(exportPersonIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+        Map<String, FaceCheckinPerson> exportPersonMap = listPersonBriefMap(exportPersonIds);
         for (FaceCheckinMeetingMember member : members) {
             FaceCheckinAttendance attendance = attendanceByPerson.get(member.getPersonId());
             FaceCheckinPerson person = exportPersonMap.get(member.getPersonId());
@@ -631,6 +543,33 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         return attendance != null && attendance.getStatus() != null && attendance.getStatus() == STATUS_SUCCESS;
     }
 
+    /**
+     * 按 id 集合批量取人员（排除 photo_path/face_vector 两个 mediumtext 大字段）并构建 Map。
+     * 轮询接口（attendance/request 列表）10s 一次高频调用，全列加载会把所有人员照片
+     * 拉进 JVM；展示场景只需要姓名/工号/类型等基础字段。
+     */
+    private Map<String, FaceCheckinPerson> listPersonBriefMap(List<String> personIds) {
+        if (personIds == null || personIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<String> distinctIds = personIds.stream().filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+        if (distinctIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return list(new LambdaQueryWrapper<FaceCheckinPerson>()
+                .select(FaceCheckinPerson::getId,
+                        FaceCheckinPerson::getPersonName,
+                        FaceCheckinPerson::getEmployeeNo,
+                        FaceCheckinPerson::getPhone,
+                        FaceCheckinPerson::getPersonType,
+                        FaceCheckinPerson::getStatus,
+                        FaceCheckinPerson::getAuditStatus,
+                        FaceCheckinPerson::getCreateTime)
+                .in(FaceCheckinPerson::getId, distinctIds))
+                .stream()
+                .collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+    }
+
     private boolean late(FaceCheckinAttendance attendance, MeetingReserve meeting) {
         return checkedIn(attendance) && meeting != null && meeting.getAttendanceEndTime() != null
                 && attendance.getCheckinTime() != null
@@ -642,7 +581,8 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                                         boolean checkedIn, boolean late) {
         sb.append(csvEscape(person != null ? person.getPersonName()
                 : (attendance != null ? attendance.getPersonName() : ""))).append(",")
-                .append(csvEscape(person != null ? person.getEmployeeNo() : "")).append(",")
+                // 工号/人员ID 等长数字列加 ' 前缀强制文本，避免 Excel 按数值显示丢精度（15 位后全变 0）。
+                .append(csvText(person != null ? person.getEmployeeNo() : "")).append(",")
                 .append(person != null && person.getPersonType() != null && person.getPersonType() == 1 ? "工作人员"
                         : (person != null ? "访客" : "未知")).append(",")
                 .append(csvText(attendance != null ? attendance.getPersonId() : "")).append(",")
@@ -690,6 +630,10 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if ("=+-@".indexOf(value.charAt(0)) >= 0) {
             return csvEscape("'" + value);
         }
+        // 纯数字且长度达到 Excel 双精度边界（15 位）时加 ' 前缀，防止 Excel 当数值显示丢精度。
+        if (value.length() >= 15 && value.chars().allMatch(Character::isDigit)) {
+            return csvEscape("'" + value);
+        }
         return csvEscape(value);
     }
 
@@ -721,9 +665,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 .filter(personId -> !checkedInIds.contains(personId))
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, FaceCheckinPerson> absentPersonMap = absentIds.isEmpty()
-                ? Collections.emptyMap()
-                : listByIds(absentIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+        Map<String, FaceCheckinPerson> absentPersonMap = listPersonBriefMap(absentIds);
         return members.stream()
                 .filter(m -> !checkedInIds.contains(m.getPersonId()))
                 .map(m -> {
@@ -739,8 +681,18 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
 
     @Override
     public List<FaceCheckinRequestVO> listRequests(String meetingReserveId) {
+        /* VO 不含照片内容；实体 photoPath 也从未写入（verify 不落照片），投影直接排除该 mediumtext 列。 */
         List<FaceCheckinRequest> list = requestMapper.selectList(
                 new LambdaQueryWrapper<FaceCheckinRequest>()
+                        .select(FaceCheckinRequest::getId,
+                                FaceCheckinRequest::getRequestId,
+                                FaceCheckinRequest::getDeviceId,
+                                FaceCheckinRequest::getMeetingReserveId,
+                                FaceCheckinRequest::getAcceptTime,
+                                FaceCheckinRequest::getStatus,
+                                FaceCheckinRequest::getResult,
+                                FaceCheckinRequest::getPersonId,
+                                FaceCheckinRequest::getCreateTime)
                         .eq(StringUtils.isNotBlank(meetingReserveId), FaceCheckinRequest::getMeetingReserveId, meetingReserveId)
                         .orderByDesc(FaceCheckinRequest::getCreateTime)
                         .last("LIMIT 100"));
@@ -749,9 +701,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 .filter(StringUtils::isNotBlank)
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, FaceCheckinPerson> personMap = personIds.isEmpty()
-                ? Collections.emptyMap()
-                : listByIds(personIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+        Map<String, FaceCheckinPerson> personMap = listPersonBriefMap(personIds);
         return list.stream().map(request -> {
             FaceCheckinRequestVO vo = new FaceCheckinRequestVO();
             vo.setId(request.getId());
@@ -910,8 +860,8 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         }
         List<String> memberIds = normalizeMemberIds(dto.getPersonIds());
         if (!memberIds.isEmpty()) {
-            Map<String, FaceCheckinPerson> personMap = listByIds(memberIds).stream()
-                    .collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+            /* 校验需要 status/auditStatus，列表页轮询不需要照片与特征，统一走精简投影。 */
+            Map<String, FaceCheckinPerson> personMap = listPersonBriefMap(memberIds);
             List<String> invalidMemberIds = memberIds.stream()
                     .filter(personId -> {
                         FaceCheckinPerson person = personMap.get(personId);
@@ -950,9 +900,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 .map(FaceCheckinMeetingMember::getPersonId)
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, FaceCheckinPerson> personMap = personIds.isEmpty()
-                ? Collections.emptyMap()
-                : listByIds(personIds).stream().collect(Collectors.toMap(FaceCheckinPerson::getId, Function.identity(), (a, b) -> a));
+        Map<String, FaceCheckinPerson> personMap = listPersonBriefMap(personIds);
         return personIds.stream()
                 .map(personMap::get)
                 .filter(person -> person != null)
@@ -962,20 +910,40 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
 
     @Override
     public List<FaceCheckinAttendanceVO> listAttendance(String meetingReserveId) {
+        /* VO 无 photo 字段，photo_path 是 mediumtext 大字段，排除投影避免轮询接口每次全量拉照片。 */
         List<FaceCheckinAttendance> list = attendanceMapper.selectList(
                 new LambdaQueryWrapper<FaceCheckinAttendance>()
+                        .select(FaceCheckinAttendance::getId,
+                                FaceCheckinAttendance::getMeetingReserveId,
+                                FaceCheckinAttendance::getPersonId,
+                                FaceCheckinAttendance::getPersonName,
+                                FaceCheckinAttendance::getCheckinTime,
+                                FaceCheckinAttendance::getStatus,
+                                FaceCheckinAttendance::getRequestId,
+                                FaceCheckinAttendance::getDeviceId,
+                                FaceCheckinAttendance::getRemark,
+                                FaceCheckinAttendance::getParticipantCategory,
+                                FaceCheckinAttendance::getCreateTime)
                         .eq(FaceCheckinAttendance::getMeetingReserveId, meetingReserveId)
                         .orderByDesc(FaceCheckinAttendance::getCheckinTime));
-        return list.stream().map(this::toAttendanceVO).collect(Collectors.toList());
+        /* 一次批量取齐涉及的人员，避免逐条 getById 的 N+1 查询。 */
+        List<String> personIds = list.stream()
+                .map(FaceCheckinAttendance::getPersonId)
+                .filter(StringUtils::isNotBlank)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<String, FaceCheckinPerson> personMap = listPersonBriefMap(personIds);
+        return list.stream().map(event -> toAttendanceVO(event, personMap)).collect(Collectors.toList());
     }
 
-    private FaceCheckinAttendanceVO toAttendanceVO(FaceCheckinAttendance attendance) {
+    private FaceCheckinAttendanceVO toAttendanceVO(FaceCheckinAttendance attendance, Map<String, FaceCheckinPerson> personMap) {
         FaceCheckinAttendanceVO vo = new FaceCheckinAttendanceVO();
         vo.setId(attendance.getId());
         vo.setMeetingReserveId(attendance.getMeetingReserveId());
         vo.setPersonId(attendance.getPersonId());
         vo.setPersonName(attendance.getPersonName());
-        FaceCheckinPerson attendancePerson = StringUtils.isNotBlank(attendance.getPersonId()) ? getById(attendance.getPersonId()) : null;
+        FaceCheckinPerson attendancePerson = StringUtils.isNotBlank(attendance.getPersonId())
+                ? personMap.get(attendance.getPersonId()) : null;
         vo.setEmployeeNo(attendancePerson != null ? attendancePerson.getEmployeeNo() : null);
         vo.setPersonType(attendancePerson != null ? attendancePerson.getPersonType() : null);
         vo.setRequestId(attendance.getRequestId());

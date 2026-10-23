@@ -216,11 +216,11 @@ export default defineComponent({
     const deviceStatus = reactive({ running: false, pid: null as number | null, exitCode: null as number | null });
 
     const statusText = (status: number) => {
-      const statusNames: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '未授权', 4: '未识别', 5: '迟到签到', 6: '早退签到', 7: '处理失败' };
+      const statusNames: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '未授权', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败' };
       return statusNames[status] || '未知状态';
     };
     const statusColor = (status: number) => {
-      const statusColors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 6: 'blue', 7: 'red' };
+      const statusColors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red' };
       return statusColors[status] || 'default';
     };
     const loadMeetings = async () => {
@@ -344,7 +344,7 @@ export default defineComponent({
     };
     const savePerson = async () => {
       if (!personForm.personName) { message.error('请输入姓名'); return; }
-      if (!personForm.photoBase64) { message.error('请上传人脸照片'); return; }
+      if (!personForm.id && !personForm.photoBase64) { message.error('请上传人脸照片'); return; }
       try {
         await request({ url: `${PREFIX}/person/save`, method: 'POST', data: personForm });
         message.success('保存成功');

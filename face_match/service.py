@@ -8,9 +8,10 @@ import base64
 import json
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -21,6 +22,12 @@ except ImportError:
 
 PORT = 8901
 MODEL_DIR = Path(__file__).resolve().parent / "models"
+# matcher.DEFAULT_DET_THRESHOLD 的默认检测阈值；/match-batch 取缓存模型时需要显式传入。
+DET_THRESHOLD = 0.6
+
+# OpenCV YuNet/SFace 模型实例全局缓存且非线程安全（detect/feature 会改内部状态），
+# 多线程服务下必须串行化所有推理调用；网络与磁盘 IO 仍可并发。
+INFERENCE_LOCK = threading.Lock()
 
 
 def log_result(stage: str, result: dict) -> None:
@@ -62,12 +69,15 @@ class Handler(BaseHTTPRequestHandler):
                 if not templates:
                     self._respond({"success": False, "similarity": None, "reason": "no face candidates"})
                     return
-            if not photo_b64 or (self.path != "/extract" and not template_b64):
+                # /match-batch 的模板是 templates 列表，不使用 templateBase64 字段。
+                template_b64 = "batch"
+            if not photo_b64 or (self.path != "/extract" and self.path != "/match-batch" and not template_b64):
                 self._respond({"success": False, "similarity": None, "reason": "missing image data"})
                 return
             photo_path = self._decode(photo_b64, "photo")
             if self.path == "/extract":
-                feature_result = extract_face_feature(photo_path, model_dir=MODEL_DIR, allow_download=False)
+                with INFERENCE_LOCK:
+                    feature_result = extract_face_feature(photo_path, model_dir=MODEL_DIR, allow_download=False)
                 response = {
                     "success": feature_result.success,
                     "reason": feature_result.reason,
@@ -79,7 +89,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._respond(response)
                 return
             if self.path == "/match-feature":
-                result = match_photo_to_feature(photo_path, template_b64, model_dir=MODEL_DIR, allow_download=False)
+                with INFERENCE_LOCK:
+                    result = match_photo_to_feature(photo_path, template_b64, model_dir=MODEL_DIR, allow_download=False)
                 response = {
                     "success": result.success,
                     "similarity": result.similarity,
@@ -92,32 +103,39 @@ class Handler(BaseHTTPRequestHandler):
                 self._respond(response)
                 return
             if self.path == "/match-batch":
-                feature_result = extract_face_feature(
-                    photo_path, model_dir=MODEL_DIR, allow_download=False, require_single_face=False
-                )
-                similarities = []
-                best_index = None
-                best_similarity = -1.0
-                if feature_result.success:
-                    _, recognizer = _load_models(MODEL_DIR, allow_download=False)
-                    for template in templates:
-                        similarity = -1.0
-                        try:
-                            if template.startswith("data:image/"):
-                                template_path = self._decode(template, "template")
-                                template_result = extract_face_feature(
-                                    template_path, model_dir=MODEL_DIR, allow_download=False
-                                )
-                                if template_result.success:
-                                    similarity = match_feature(recognizer, feature_result.feature, template_result.feature)
-                            elif template:
-                                similarity = match_feature(recognizer, feature_result.feature, decode_feature(template))
-                        except Exception:
+                with INFERENCE_LOCK:
+                    feature_result = extract_face_feature(
+                        photo_path, model_dir=MODEL_DIR, allow_download=False, require_single_face=False
+                    )
+                    similarities = []
+                    best_index = None
+                    best_similarity = -1.0
+                    if feature_result.success:
+                        _, recognizer = _load_models(MODEL_DIR, False, DET_THRESHOLD)
+                        for template in templates:
                             similarity = -1.0
-                        similarities.append(similarity)
-                        if similarity > best_similarity:
-                            best_similarity = similarity
-                            best_index = len(similarities) - 1
+                            # 单模板作用域内立即删除临时文件：解码与比对在同一 try/finally，
+                            # 循环中途抛异常也不会像"只清理最后一个"那样在 /tmp 留下残留。
+                            batch_template_path = None
+                            try:
+                                if template.startswith("data:image/"):
+                                    batch_template_path = self._decode(template, "template")
+                                    template_result = extract_face_feature(
+                                        batch_template_path, model_dir=MODEL_DIR, allow_download=False
+                                    )
+                                    if template_result.success:
+                                        similarity = match_feature(recognizer, feature_result.feature, template_result.feature)
+                                elif template:
+                                    similarity = match_feature(recognizer, feature_result.feature, decode_feature(template))
+                            except Exception:
+                                similarity = -1.0
+                            finally:
+                                if batch_template_path:
+                                    Path(batch_template_path).unlink(missing_ok=True)
+                            similarities.append(similarity)
+                            if similarity > best_similarity:
+                                best_similarity = similarity
+                                best_index = len(similarities) - 1
                 response = {
                     "success": feature_result.success,
                     "reason": feature_result.reason,
@@ -130,7 +148,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._respond(response)
                 return
             template_path = self._decode(template_b64, "template")
-            result = match_faces(photo_path, template_path, model_dir=MODEL_DIR, allow_download=False)
+            with INFERENCE_LOCK:
+                result = match_faces(photo_path, template_path, model_dir=MODEL_DIR, allow_download=False)
             response = {
                 "success": result.success,
                 "similarity": result.similarity,
@@ -175,7 +194,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print(f"[face-inference] listening on http://0.0.0.0:{PORT}/match", flush=True)
     server.serve_forever()
 

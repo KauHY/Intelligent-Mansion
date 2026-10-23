@@ -11,6 +11,10 @@ from pathlib import Path
 
 BRIDGE_DIR = Path(__file__).resolve().parent
 LOG_PATH = BRIDGE_DIR / 'device_control.log'
+# 子进程（api_bridge）单独写这份文件：Windows 下继承 stdout 句柄会丢 append 语义，
+# 子进程的文件指针冻结在启动时刻的"旧末尾"，其后的 heartbeat print 会覆盖文件中部，
+# 导致 /logs 读取的"最后 N 字节"里板端行停在旧时刻、心跳行出现在文件中部。
+BRIDGE_LOG_PATH = BRIDGE_DIR / 'api_bridge.log'
 TOKEN = 'local-device-control-token'
 
 
@@ -30,6 +34,8 @@ def append_log(line):
 class BridgeManager:
     def __init__(self):
         self.process = None
+        self.log_file = None
+        self.bridge_log_file = None
         self.meeting_id = None
         self.lock = threading.Lock()
 
@@ -60,7 +66,10 @@ class BridgeManager:
                 '--meeting-reserve-id', meeting_id,
             ]
             append_log(f'[{timestamp()}] start meeting={meeting_id}')
-            self.process = subprocess.Popen(args, cwd=BRIDGE_DIR, stdout=open(LOG_PATH, 'ab'), stderr=subprocess.STDOUT)
+            # 日志句柄必须保存并在下次启动前关闭：Windows 下不关闭会一直占用日志文件，多次启停还会累积句柄。
+            self._close_log_locked()
+            self.bridge_log_file = open(BRIDGE_LOG_PATH, 'ab')
+            self.process = subprocess.Popen(args, cwd=BRIDGE_DIR, stdout=self.bridge_log_file, stderr=subprocess.STDOUT)
             self.meeting_id = meeting_id
             return {'running': True, 'pid': self.process.pid, 'meetingReserveId': meeting_id, 'message': '识别服务已启动'}
 
@@ -72,6 +81,7 @@ class BridgeManager:
         if self.process is None or self.process.poll() is not None:
             self.process = None
             self.meeting_id = None
+            self._close_log_locked()
             return {'running': False, 'message': '识别服务未在运行'}
         process, self.process = self.process, None
         self.meeting_id = None
@@ -81,20 +91,52 @@ class BridgeManager:
         except subprocess.TimeoutExpired:
             process.kill()
             process.wait(timeout=3)
+        self._close_log_locked()
         return {'running': False, 'message': '识别服务已停止'}
 
+    def _close_log_locked(self):
+        if self.log_file is not None:
+            try:
+                self.log_file.close()
+            except OSError:
+                pass
+            self.log_file = None
+        if self.bridge_log_file is not None:
+            try:
+                self.bridge_log_file.close()
+            except OSError:
+                pass
+            self.bridge_log_file = None
+
     def logs(self, limit=16000):
-        if not LOG_PATH.exists():
-            return []
-        try:
-            with LOG_PATH.open('rb') as handle:
-                handle.seek(0, 2)
-                size = handle.tell()
-                handle.seek(max(0, size - limit))
-                text = handle.read().decode('utf-8', errors='replace')
-            return [line for line in text.splitlines() if line.strip()][-160:]
-        except OSError:
-            return []
+        # board 行全部落在 device_control.log，心跳/识别行落在 api_bridge.log。
+        # 各文件独立取"最后 limit 字节"再合并：device_control.log 历史体量远大于
+        # api_bridge.log 时（板端长时间无刷脸），若只做单一窗口，合并后 160 行会被
+        # 心跳挤光，Web 面板看不到任何板端行。分文件切片保证两边各自都有近段内容。
+        board_lines = []
+        other_lines = []
+        for path, is_board in ((LOG_PATH, True), (BRIDGE_LOG_PATH, False)):
+            if not path.exists():
+                continue
+            try:
+                with path.open('rb') as handle:
+                    handle.seek(0, 2)
+                    size = handle.tell()
+                    handle.seek(max(0, size - limit))
+                    text = handle.read().decode('utf-8', errors='replace')
+                lines = [line for line in text.splitlines() if line.strip()]
+                if is_board:
+                    board_lines = lines
+                else:
+                    other_lines = lines
+            except OSError:
+                continue
+        # device_control.log 尾部同时有控制行与 board 行，board 行单独过滤后各保留一半，
+        # 避免单类行刷屏时把另一类挤掉。
+        board_only = [line for line in board_lines if '[board] ' in line]
+        control_lines = [line for line in board_lines if '[board] ' not in line]
+        half = 80
+        return (control_lines[-half:] + board_only[-half:] + other_lines[-half:])[-160:]
 
 
 class BoardLogCollector:
@@ -105,12 +147,17 @@ class BoardLogCollector:
         self.detail = ''
         self.stop_event = threading.Event()
         self.status_lock = threading.Lock()
+        self._last_status = None
+        self._last_detail = None
 
     def set_status(self, status, detail=''):
         with self.status_lock:
+            changed = (status, detail) != (self._last_status, self._last_detail)
+            self._last_status, self._last_detail = status, detail
             self.status = status
             self.detail = detail
-        append_log(f'[{timestamp()}] [board-log] status={status} port={self.port} baud={self.baud} detail={detail}')
+        if changed:
+            append_log(f'[{timestamp()}] [board-log] status={status} port={self.port} baud={self.baud} detail={detail}')
 
     def serial_status(self):
         with self.status_lock:
@@ -142,16 +189,26 @@ class BoardLogCollector:
                 connection.rts = False
                 self.set_status('connected', '串口已打开')
                 buffer = ''
+                silent_reads = 0
                 while not self.stop_event.is_set():
                     chunk = connection.read(512)
                     if not chunk:
+                        # 持续读不到数据大概率是 USB 转串口被重新枚举等导致的静默断链：
+                        # read() 不抛错只返回空，必须主动重建连接，否则 /status 永远显示 connected。
+                        silent_reads += 1
+                        if silent_reads >= 20:  # 约 4 秒无任何数据即重连
+                            self.set_status('reconnecting', f'串口 {self.port} 连续 {silent_reads} 次无数据，尝试重连')
+                            break
                         continue
+                    silent_reads = 0
                     buffer += chunk.decode('utf-8', errors='replace').replace('\r', '\n')
                     while '\n' in buffer:
                         line, buffer = buffer.split('\n', 1)
                         if line.strip():
                             append_log(f'[{timestamp()}] [board] {line.strip()}')
                 connection.close()
+                # 静默断链重连路径：给设备重新枚举留一点时间，避免立刻 open 又失败。
+                self.stop_event.wait(2)
             except Exception as exc:
                 self.set_status('failed', str(exc))
                 self.stop_event.wait(5)

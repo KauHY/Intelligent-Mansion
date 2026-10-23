@@ -66,7 +66,7 @@
       <template v-if="debugVisible">
         <a-card size="small" title="板端调试指南" class="section-card">
           <ul class="debug-list">
-            <li>Web 启动后看下方「识别日志」，页面每 5 秒自动刷新，包含 <code>[heartbeat]</code>、<code>[connection]</code>、<code>[photo]</code>、<code>[identify]</code>。</li>
+            <li>Web 启动后看下方「识别日志」，页面每 10 秒自动刷新，包含 <code>[heartbeat]</code>、<code>[connection]</code>、<code>[photo]</code>、<code>[identify]</code>。</li>
             <li>要看本机命令行实时日志，请双击 <code>code\Start-Device-Log.cmd</code>；它会跟随 <code>pc_bridge\device_control.log</code> 输出。</li>
             <li>要看桥接进程原始终端，请先在详情页「停止识别」，再运行 <code>code\Start-Ethernet-Checkin.cmd &lt;会议ID&gt;</code>。</li>
             <li>如果日志一直只有心跳且没有 <code>[connection]</code>，说明板端还没有连上 PC 的 <code>9000</code> 端口；先检查网线/IP/防火墙。</li>
@@ -241,11 +241,11 @@ export default defineComponent({
   return '未知';
 };
     const statusText = (status: number) => {
-      const names: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '迟到签到', 6: '早退签到', 7: '处理失败' };
+      const names: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败' };
       return names[status] || '未知状态';
     };
     const statusColor = (status: number) => {
-      const colors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 6: 'blue', 7: 'red' };
+      const colors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red' };
       return colors[status] || 'default';
     };
     const requestResultText = (result: string) => {
