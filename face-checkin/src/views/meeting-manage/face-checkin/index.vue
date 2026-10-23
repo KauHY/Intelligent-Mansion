@@ -1,52 +1,158 @@
 <template>
   <div class="face-checkin-page">
-    <a-card :title="pageTitle" :class="{ 'face-checkin-single': !!currentMode }">
-      <a-tabs :active-key="activeTab" :class="{ 'single-mode-tabs': !!currentMode }">
-        <a-tab-pane v-if="!currentMode || currentMode === 'attendance'" key="attendance" tab="签到记录">
+    <a-card
+      :title="pageTitle"
+      :class="{ 'face-checkin-single': !!currentMode }"
+    >
+      <a-tabs
+        :active-key="activeTab"
+        :class="{ 'single-mode-tabs': !!currentMode }"
+      >
+        <a-tab-pane
+          v-if="!currentMode || currentMode === 'attendance'"
+          key="attendance"
+          tab="签到记录"
+        >
           <div class="toolbar">
-            <a-select v-model:value="meetingReserveId" placeholder="选择会议" style="width: 300px; margin-right: 12px;" :options="meetingOptions" />
-            <a-button type="primary" @click="loadAttendance">查询</a-button>
-            <a-button style="margin-left: 12px;" @click="exportCsv" :disabled="!meetingReserveId">导出CSV</a-button>
+            <a-select
+              v-model:value="meetingReserveId"
+              placeholder="选择会议"
+              style="width: 300px; margin-right: 12px;"
+              :options="meetingOptions"
+            />
+            <a-button
+              type="primary"
+              @click="loadAttendance"
+            >
+              查询
+            </a-button>
+            <a-button
+              style="margin-left: 12px;"
+              :disabled="!meetingReserveId"
+              @click="exportCsv"
+            >
+              导出CSV
+            </a-button>
           </div>
-          <a-table row-key="id" :columns="attendanceColumns" :data-source="attendanceList" :loading="attendanceLoading" :pagination="false">
+          <a-table
+            row-key="id"
+            :columns="attendanceColumns"
+            :data-source="attendanceList"
+            :loading="attendanceLoading"
+            :pagination="false"
+          >
             <template #participantCategory="{ record }">
-              <a-tag :color="participantCategoryColor(record.participantCategory)">{{ participantCategoryText(record.participantCategory) }}</a-tag>
+              <a-tag :color="participantCategoryColor(record.participantCategory)">
+                {{ participantCategoryText(record.participantCategory) }}
+              </a-tag>
             </template>
             <template #status="{ record }">
-              <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
-              <a-tag v-if="record.remark" color="orange">{{ record.remark }}</a-tag>
+              <a-tag :color="statusColor(record.status)">
+                {{ statusText(record.status) }}
+              </a-tag>
+              <a-tag
+                v-if="record.remark"
+                color="orange"
+              >
+                {{ record.remark }}
+              </a-tag>
             </template>
           </a-table>
         </a-tab-pane>
-        <a-tab-pane v-if="!currentMode || currentMode === 'requests'" key="requests" tab="上传记录">
-          <a-table row-key="id" :columns="requestColumns" :data-source="requestList" :loading="requestLoading" :pagination="false">
+        <a-tab-pane
+          v-if="!currentMode || currentMode === 'requests'"
+          key="requests"
+          tab="上传记录"
+        >
+          <a-table
+            row-key="id"
+            :columns="requestColumns"
+            :data-source="requestList"
+            :loading="requestLoading"
+            :pagination="false"
+          >
             <template #requestStatus="{ record }">
-              <a-tag :color="record.status === 1 ? 'green' : 'orange'">{{ record.status === 1 ? '已接收' : '未处理' }}</a-tag>
+              <a-tag :color="record.status === 1 ? 'green' : 'orange'">
+                {{ record.status === 1 ? '已接收' : '未处理' }}
+              </a-tag>
             </template>
           </a-table>
         </a-tab-pane>
-        <a-tab-pane v-if="!currentMode || currentMode === 'persons'" key="persons" tab="人员管理">
+        <a-tab-pane
+          v-if="!currentMode || currentMode === 'persons'"
+          key="persons"
+          tab="人员管理"
+        >
           <div class="toolbar">
-            <a-input-search v-model:value="personKeyword" placeholder="搜索姓名" style="width: 300px; margin-right: 12px;" @search="loadPersons" />
-            <a-button type="primary" @click="showPersonModal">新增人员</a-button>
+            <a-input-search
+              v-model:value="personKeyword"
+              placeholder="搜索姓名"
+              style="width: 300px; margin-right: 12px;"
+              @search="loadPersons"
+            />
+            <a-button
+              type="primary"
+              @click="showPersonModal"
+            >
+              新增人员
+            </a-button>
           </div>
-          <a-table row-key="id" :columns="personColumns" :data-source="personList" :loading="personLoading" :pagination="personPagination" @change="personPageChange">
-            <template #personType="{ record }">{{ record.personType === 1 ? '工作人员' : '访客' }}</template>
+          <a-table
+            row-key="id"
+            :columns="personColumns"
+            :data-source="personList"
+            :loading="personLoading"
+            :pagination="personPagination"
+            @change="personPageChange"
+          >
+            <template #personType="{ record }">
+              {{ record.personType === 1 ? '工作人员' : '访客' }}
+            </template>
             <template #status="{ record }">
-              <a-tag :color="record.status === 1 ? 'green' : 'red'">{{ record.status === 1 ? '启用' : '禁用' }}</a-tag>
+              <a-tag :color="record.status === 1 ? 'green' : 'red'">
+                {{ record.status === 1 ? '启用' : '禁用' }}
+              </a-tag>
             </template>
             <template #auditStatus="{ record }">
-              <a-tag :color="record.auditStatus === 1 ? 'green' : record.auditStatus === 2 ? 'red' : 'orange'">{{ record.auditStatus === 1 ? '审核通过' : record.auditStatus === 2 ? '审核拒绝' : '待审核' }}</a-tag>
+              <a-tag :color="record.auditStatus === 1 ? 'green' : record.auditStatus === 2 ? 'red' : 'orange'">
+                {{ record.auditStatus === 1 ? '审核通过' : record.auditStatus === 2 ? '审核拒绝' : '待审核' }}
+              </a-tag>
             </template>
             <template #operate="{ record }">
-              <a-button v-if="record.auditStatus === 0" type="link" @click="auditPerson(record.id, 1)">通过</a-button>
-              <a-button v-if="record.auditStatus === 0" type="link" @click="auditPerson(record.id, 2)">拒绝</a-button>
-              <a-button type="link" @click="editPerson(record)">编辑</a-button>
-              <a-button type="link" @click="removePerson(record.id)">删除</a-button>
+              <a-button
+                v-if="record.auditStatus === 0"
+                type="link"
+                @click="auditPerson(record.id, 1)"
+              >
+                通过
+              </a-button>
+              <a-button
+                v-if="record.auditStatus === 0"
+                type="link"
+                @click="auditPerson(record.id, 2)"
+              >
+                拒绝
+              </a-button>
+              <a-button
+                type="link"
+                @click="editPerson(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                type="link"
+                @click="removePerson(record.id)"
+              >
+                删除
+              </a-button>
             </template>
           </a-table>
         </a-tab-pane>
-        <a-tab-pane v-if="!currentMode || currentMode === 'meetings'" key="meetings" tab="会议管理">
+        <a-tab-pane
+          v-if="!currentMode || currentMode === 'meetings'"
+          key="meetings"
+          tab="会议管理"
+        >
           <div class="toolbar">
             <a-input-search
               v-model:value="meetingKeyword"
@@ -59,34 +165,101 @@
               style="width: 150px; margin-right: 12px;"
               :options="meetingStatusOptions"
             />
-            <a-button type="primary" @click="showMeetingModal">新增会议</a-button>
-            <a-button style="margin-left: 12px;" @click="loadMeetings">刷新</a-button>
+            <a-button
+              type="primary"
+              @click="showMeetingModal"
+            >
+              新增会议
+            </a-button>
+            <a-button
+              style="margin-left: 12px;"
+              @click="loadMeetings"
+            >
+              刷新
+            </a-button>
           </div>
-      <a-table row-key="id" :columns="meetingColumns" :data-source="filteredMeetingList" :loading="meetingLoading" :pagination="false">
+          <a-table
+            row-key="id"
+            :columns="meetingColumns"
+            :data-source="filteredMeetingList"
+            :loading="meetingLoading"
+            :pagination="false"
+          >
             <template #meetingStatus="{ record }">
-              <a-tag :color="meetingStatusColor(record)">{{ meetingStatusText(record) }}</a-tag>
+              <a-tag :color="meetingStatusColor(record)">
+                {{ meetingStatusText(record) }}
+              </a-tag>
             </template>
             <template #operate="{ record }">
-              <a-button type="link" @click="openDetail(record)">详情</a-button>
-              <a-button type="link" @click="removeMeeting(record.id)">删除</a-button>
+              <a-button
+                type="link"
+                @click="openDetail(record)"
+              >
+                详情
+              </a-button>
+              <a-button
+                type="link"
+                @click="removeMeeting(record.id)"
+              >
+                删除
+              </a-button>
             </template>
           </a-table>
         </a-tab-pane>
       </a-tabs>
     </a-card>
-    <a-modal v-model:visible="personModalVisible" :title="personForm.id ? '编辑人员' : '新增人员'" @ok="savePerson">
+    <a-modal
+      v-model:visible="personModalVisible"
+      :title="personForm.id ? '编辑人员' : '新增人员'"
+      @ok="savePerson"
+    >
       <a-form layout="vertical">
-        <a-form-item label="姓名" required><a-input v-model:value="personForm.personName" /></a-form-item>
-        <a-form-item label="工号"><a-input v-model:value="personForm.employeeNo" /></a-form-item>
-        <a-form-item label="手机号"><a-input v-model:value="personForm.phone" /></a-form-item>
-        <a-form-item label="人员类型" required><a-select v-model:value="personForm.personType" :options="[{ value: 1, label: '工作人员' }, { value: 2, label: '访客' }]" /></a-form-item>
-        <a-form-item label="人脸照片"><input type="file" accept="image/*" @change="onPhotoChange" /></a-form-item>
+        <a-form-item
+          label="姓名"
+          required
+        >
+          <a-input v-model:value="personForm.personName" />
+        </a-form-item>
+        <a-form-item label="工号">
+          <a-input v-model:value="personForm.employeeNo" />
+        </a-form-item>
+        <a-form-item label="手机号">
+          <a-input v-model:value="personForm.phone" />
+        </a-form-item>
+        <a-form-item
+          label="人员类型"
+          required
+        >
+          <a-select
+            v-model:value="personForm.personType"
+            :options="[{ value: 1, label: '工作人员' }, { value: 2, label: '访客' }]"
+          />
+        </a-form-item>
+        <a-form-item label="人脸照片">
+          <input
+            type="file"
+            accept="image/*"
+            @change="onPhotoChange"
+          >
+        </a-form-item>
       </a-form>
     </a-modal>
-    <a-modal v-model:visible="meetingModalVisible" :title="meetingForm.id ? '编辑会议' : '新增会议'" @ok="saveMeeting">
+    <a-modal
+      v-model:visible="meetingModalVisible"
+      :title="meetingForm.id ? '编辑会议' : '新增会议'"
+      @ok="saveMeeting"
+    >
       <a-form layout="vertical">
-        <a-form-item label="会议主题" required><a-input v-model:value="meetingForm.meetingSubject" /></a-form-item>
-        <a-form-item label="开始时间" required>
+        <a-form-item
+          label="会议主题"
+          required
+        >
+          <a-input v-model:value="meetingForm.meetingSubject" />
+        </a-form-item>
+        <a-form-item
+          label="开始时间"
+          required
+        >
           <a-date-picker
             v-model:value="meetingForm.meetingTimeStart"
             :show-time="{ format: 'HH:mm' }"
@@ -95,8 +268,20 @@
             style="width: 100%;"
           />
         </a-form-item>
-        <a-form-item label="持续时间" required><a-select v-model:value="meetingForm.durationMinutes" :options="durationOptions" style="width: 100%;" /></a-form-item>
-        <a-form-item label="考勤开始时间" required>
+        <a-form-item
+          label="持续时间"
+          required
+        >
+          <a-select
+            v-model:value="meetingForm.durationMinutes"
+            :options="durationOptions"
+            style="width: 100%;"
+          />
+        </a-form-item>
+        <a-form-item
+          label="考勤开始时间"
+          required
+        >
           <a-date-picker
             v-model:value="meetingForm.attendanceTimeStart"
             :show-time="{ format: 'HH:mm' }"
@@ -105,7 +290,10 @@
             style="width: 100%;"
           />
         </a-form-item>
-        <a-form-item label="考勤截止时间" required>
+        <a-form-item
+          label="考勤截止时间"
+          required
+        >
           <a-date-picker
             v-model:value="meetingForm.attendanceTimeEnd"
             :show-time="{ format: 'HH:mm' }"
@@ -114,14 +302,29 @@
             style="width: 100%;"
           />
         </a-form-item>
-        <a-form-item label="与会人员" required><a-select v-model:value="meetingForm.personIds" mode="multiple" :options="personOptions" placeholder="选择人员" style="width: 100%;" /></a-form-item>
-        <a-form-item label="备注"><a-textarea v-model:value="meetingForm.remark" /></a-form-item>
+        <a-form-item
+          label="与会人员"
+          required
+        >
+          <a-select
+            v-model:value="meetingForm.personIds"
+            mode="multiple"
+            :options="personOptions"
+            placeholder="选择人员"
+            style="width: 100%;"
+          />
+        </a-form-item>
+        <a-form-item label="备注">
+          <a-textarea v-model:value="meetingForm.remark" />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
 </template>
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, reactive, ref } from 'vue';
+import {
+  computed, defineComponent, onMounted, onUnmounted, reactive, ref,
+} from 'vue';
 import { useRouter } from 'vue-router';
 import { message } from 'ant-design-vue';
 import request from '~utils/axios';
@@ -129,7 +332,9 @@ import URLS from '@/models/urlConstant/meeting-manage';
 
 const attendanceColumns = [
   { title: '人员姓名', dataIndex: 'personName', key: 'personName' },
-  { title: '识别分类', key: 'participantCategory', slots: { customRender: 'participantCategory' }, width: 110 },
+  {
+    title: '识别分类', key: 'participantCategory', slots: { customRender: 'participantCategory' }, width: 110,
+  },
   { title: '签到时间', dataIndex: 'checkinTime', key: 'checkinTime' },
   { title: '状态', key: 'status', slots: { customRender: 'status' } },
   { title: '备注', dataIndex: 'remark', key: 'remark' },
@@ -155,11 +360,17 @@ const personColumns = [
 ];
 const meetingColumns = [
   { title: '会议主题', dataIndex: 'meetingSubject', key: 'meetingSubject' },
-  { title: '状态', key: 'meetingStatus', slots: { customRender: 'meetingStatus' }, width: 110 },
+  {
+    title: '状态', key: 'meetingStatus', slots: { customRender: 'meetingStatus' }, width: 110,
+  },
   { title: '开始时间', dataIndex: 'meetingTimeStart', key: 'meetingTimeStart' },
   { title: '结束时间', dataIndex: 'meetingTimeEnd', key: 'meetingTimeEnd' },
-  { title: '考勤开始', dataIndex: 'attendanceStartTime', key: 'attendanceStartTime', width: 170 },
-  { title: '考勤截止', dataIndex: 'attendanceEndTime', key: 'attendanceEndTime', width: 170 },
+  {
+    title: '考勤开始', dataIndex: 'attendanceStartTime', key: 'attendanceStartTime', width: 170,
+  },
+  {
+    title: '考勤截止', dataIndex: 'attendanceEndTime', key: 'attendanceEndTime', width: 170,
+  },
   { title: '与会人数', dataIndex: 'meetingPeopleNum', key: 'meetingPeopleNum' },
   { title: '备注', dataIndex: 'remark', key: 'remark' },
   { title: '操作', key: 'operate', slots: { customRender: 'operate' } },
@@ -188,7 +399,9 @@ export default defineComponent({
     const personKeyword = ref('');
     const personPagination = reactive({ current: 1, pageSize: 10, total: 0 });
     const personModalVisible = ref(false);
-    const personForm = reactive({ id: '', personName: '', employeeNo: '', phone: '', personType: 1, photoBase64: '' });
+    const personForm = reactive({
+      id: '', personName: '', employeeNo: '', phone: '', personType: 1, photoBase64: '',
+    });
     const meetingList = ref<Array<Record<string, unknown>>>([]);
     const meetingLoading = ref(false);
     const meetingKeyword = ref('');
@@ -200,7 +413,9 @@ export default defineComponent({
       { value: 'completed', label: '已完成' },
     ];
     const meetingModalVisible = ref(false);
-    const meetingForm = reactive({ id: "", meetingSubject: "", meetingTimeStart: "", durationMinutes: 60, attendanceTimeStart: "", attendanceTimeEnd: "", personIds: [] as string[], remark: "" });
+    const meetingForm = reactive({
+      id: '', meetingSubject: '', meetingTimeStart: '', durationMinutes: 60, attendanceTimeStart: '', attendanceTimeEnd: '', personIds: [] as string[], remark: '',
+    });
     const durationOptions = [
       { value: 15, label: '15分钟' },
       { value: 30, label: '30分钟' },
@@ -216,11 +431,15 @@ export default defineComponent({
     const deviceStatus = reactive({ running: false, pid: null as number | null, exitCode: null as number | null });
 
     const statusText = (status: number) => {
-      const statusNames: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '未授权', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败' };
+      const statusNames: Record<number, string> = {
+        1: '签到成功', 2: '重复签到', 3: '未授权', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
+      };
       return statusNames[status] || '未知状态';
     };
     const statusColor = (status: number) => {
-      const statusColors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red' };
+      const statusColors: Record<number, string> = {
+        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red',
+      };
       return statusColors[status] || 'default';
     };
     const loadMeetings = async () => {
@@ -267,7 +486,13 @@ export default defineComponent({
       if (!meetingReserveId.value) return;
       attendanceLoading.value = true;
       try {
-        const { data } = await request({ url: `${PREFIX}/attendance/list`, method: 'GET', params: { meetingReserveId: meetingReserveId.value } });
+        // hiddenLoading：轮询请求不打全屏遮罩，避免 10s 一次的 loading 闪烁
+        const { data } = await request({
+          url: `${PREFIX}/attendance/list`,
+          method: 'GET',
+          params: { meetingReserveId: meetingReserveId.value },
+          hiddenLoading: true,
+        });
         attendanceList.value = data || [];
       } catch {
         attendanceList.value = [];
@@ -278,7 +503,12 @@ export default defineComponent({
     const loadRequests = async () => {
       requestLoading.value = true;
       try {
-        const { data } = await request({ url: `${PREFIX}/request/list`, method: 'GET', params: { meetingReserveId: meetingReserveId.value || undefined } });
+        const { data } = await request({
+          url: `${PREFIX}/request/list`,
+          method: 'GET',
+          params: { meetingReserveId: meetingReserveId.value || undefined },
+          hiddenLoading: true,
+        });
         requestList.value = data || [];
       } catch {
         requestList.value = [];
@@ -313,8 +543,10 @@ export default defineComponent({
       personPagination.current = pagination.current;
       personPagination.pageSize = pagination.pageSize;
       loadPersons();
-    };    const showPersonModal = () => {
-      Object.assign(personForm, { id: '', personName: '', employeeNo: '', phone: '', personType: 1, photoBase64: '' });
+    }; const showPersonModal = () => {
+      Object.assign(personForm, {
+        id: '', personName: '', employeeNo: '', phone: '', personType: 1, photoBase64: '',
+      });
       personModalVisible.value = true;
     };
     const onPhotoChange = (event: Event) => {
@@ -404,40 +636,46 @@ export default defineComponent({
       router.push({ name: 'faceCheckinMeetingDetail', params: { id: record.id as string } });
     };
     const showMeetingModal = () => {
-      Object.assign(meetingForm, { id: "", meetingSubject: "", meetingTimeStart: "", durationMinutes: 60, attendanceTimeStart: "", attendanceTimeEnd: "", personIds: [], remark: "" });
+      Object.assign(meetingForm, {
+        id: '', meetingSubject: '', meetingTimeStart: '', durationMinutes: 60, attendanceTimeStart: '', attendanceTimeEnd: '', personIds: [], remark: '',
+      });
       meetingModalVisible.value = true;
     };
     const saveMeeting = async () => {
-      if (!meetingForm.meetingSubject) { message.error("请输入会议主题"); return; }
-      if (!meetingForm.meetingTimeStart) { message.error("请选择开始时间"); return; }
-      if (!meetingForm.durationMinutes) { message.error("请选择持续时间"); return; }
-      if (!meetingForm.attendanceTimeStart || !meetingForm.attendanceTimeEnd) { message.error("请设置考勤时间"); return; }
-      if (!meetingForm.personIds.length) { message.error("请选择与会人员"); return; }
-      const formatDateTime = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")} ${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:00`;
-      const startTime = new Date(meetingForm.meetingTimeStart.replace(" ", "T"));
+      if (!meetingForm.meetingSubject) { message.error('请输入会议主题'); return; }
+      if (!meetingForm.meetingTimeStart) { message.error('请选择开始时间'); return; }
+      if (!meetingForm.durationMinutes) { message.error('请选择持续时间'); return; }
+      if (!meetingForm.attendanceTimeStart || !meetingForm.attendanceTimeEnd) { message.error('请设置考勤时间'); return; }
+      if (!meetingForm.personIds.length) { message.error('请选择与会人员'); return; }
+      const formatDateTime = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:00`;
+      const startTime = new Date(meetingForm.meetingTimeStart.replace(' ', 'T'));
       const meetingTimeStart = formatDateTime(startTime);
       const endTime = new Date(startTime.getTime() + meetingForm.durationMinutes * 60 * 1000);
       const meetingTimeEnd = formatDateTime(endTime);
       const attendanceTimeStart = `${meetingForm.attendanceTimeStart}:00`;
       const attendanceTimeEnd = `${meetingForm.attendanceTimeEnd}:00`;
-      if (meetingForm.attendanceTimeEnd < meetingForm.attendanceTimeStart) { message.error("考勤截止时间不能早于考勤开始时间"); return; }
-      if (meetingForm.attendanceTimeStart < meetingForm.meetingTimeStart || meetingForm.attendanceTimeEnd > meetingTimeEnd.slice(0, 16)) { message.error("考勤时间需在会议持续时间内"); return; }
+      if (meetingForm.attendanceTimeEnd < meetingForm.attendanceTimeStart) { message.error('考勤截止时间不能早于考勤开始时间'); return; }
+      if (meetingForm.attendanceTimeStart < meetingForm.meetingTimeStart || meetingForm.attendanceTimeEnd > meetingTimeEnd.slice(0, 16)) { message.error('考勤时间需在会议持续时间内'); return; }
       try {
-        await request({ url: `${PREFIX}/meeting/${meetingForm.id ? "update" : "save"}`, method: "POST", data: {
-          id: meetingForm.id,
-          meetingSubject: meetingForm.meetingSubject,
-          meetingTimeStart,
-          meetingTimeEnd,
-          attendanceStartTime: attendanceTimeStart,
-          attendanceEndTime: attendanceTimeEnd,
-          personIds: meetingForm.personIds,
-          remark: meetingForm.remark,
-        } });
-        message.success("保存成功");
+        await request({
+          url: `${PREFIX}/meeting/${meetingForm.id ? 'update' : 'save'}`,
+          method: 'POST',
+          data: {
+            id: meetingForm.id,
+            meetingSubject: meetingForm.meetingSubject,
+            meetingTimeStart,
+            meetingTimeEnd,
+            attendanceStartTime: attendanceTimeStart,
+            attendanceEndTime: attendanceTimeEnd,
+            personIds: meetingForm.personIds,
+            remark: meetingForm.remark,
+          },
+        });
+        message.success('保存成功');
         meetingModalVisible.value = false;
         loadMeetings();
       } catch {
-        message.error("保存失败");
+        message.error('保存失败');
       }
     };
     const removeMeeting = async (id: string) => {
@@ -496,7 +734,7 @@ export default defineComponent({
       return record.status === 1 ? '已处理' : '未处理';
     });
     const meetingLabel = (id: string) => {
-      const meeting = meetingOptions.value.find(item => item.value === id);
+      const meeting = meetingOptions.value.find((item) => item.value === id);
       return meeting?.label || id || '未指定';
     };
     let monitorTimer = 0;
@@ -510,21 +748,65 @@ export default defineComponent({
     onMounted(() => { loadMeetings(); loadPersons(); loadPersonOptions(); loadRequests(); loadDeviceStatus(); startMonitor(); });
     onUnmounted(() => { if (monitorTimer) window.clearInterval(monitorTimer); });
     return {
-      currentMode, activeTab, pageTitle, meetingReserveId, meetingOptions,
-      attendanceList, attendanceLoading, requestList, requestLoading,
-      personList, personLoading, personKeyword, personPagination,
-      personModalVisible, personForm, attendanceColumns, requestColumns, personColumns,
-      statusText, statusColor, loadAttendance, loadRequests, loadPersons, personPageChange,
-      participantCategoryText, participantCategoryColor,
-      showPersonModal, onPhotoChange, savePerson, removePerson, editPerson,
-      exportCsv, auditPerson,
-      meetingList, meetingLoading, meetingModalVisible, meetingForm, meetingColumns,
-      showMeetingModal, saveMeeting, removeMeeting, openDetail,
-      meetingKeyword, meetingStatusFilter, meetingStatusOptions, filteredMeetingList,
-      meetingStatusText, meetingStatusColor,
-      durationOptions, personOptions,
-      deviceMeetingId, deviceControlLoading, deviceStatus, startDevice, stopDevice, loadDeviceStatus,
-      latestRequest, latestRequestStatusText, meetingLabel,
+      currentMode,
+      activeTab,
+      pageTitle,
+      meetingReserveId,
+      meetingOptions,
+      attendanceList,
+      attendanceLoading,
+      requestList,
+      requestLoading,
+      personList,
+      personLoading,
+      personKeyword,
+      personPagination,
+      personModalVisible,
+      personForm,
+      attendanceColumns,
+      requestColumns,
+      personColumns,
+      statusText,
+      statusColor,
+      loadAttendance,
+      loadRequests,
+      loadPersons,
+      personPageChange,
+      participantCategoryText,
+      participantCategoryColor,
+      showPersonModal,
+      onPhotoChange,
+      savePerson,
+      removePerson,
+      editPerson,
+      exportCsv,
+      auditPerson,
+      meetingList,
+      meetingLoading,
+      meetingModalVisible,
+      meetingForm,
+      meetingColumns,
+      showMeetingModal,
+      saveMeeting,
+      removeMeeting,
+      openDetail,
+      meetingKeyword,
+      meetingStatusFilter,
+      meetingStatusOptions,
+      filteredMeetingList,
+      meetingStatusText,
+      meetingStatusColor,
+      durationOptions,
+      personOptions,
+      deviceMeetingId,
+      deviceControlLoading,
+      deviceStatus,
+      startDevice,
+      stopDevice,
+      loadDeviceStatus,
+      latestRequest,
+      latestRequestStatusText,
+      meetingLabel,
     };
   },
 });
@@ -532,12 +814,14 @@ export default defineComponent({
 <style scoped>
 .toolbar { margin-bottom: 16px; }
 .device-control-card { margin-bottom: 16px; }
+
 .device-tip {
-  color: #666;
-  font-size: 12px;
+    font-size: 12px;
+    color: #666;
 }
+
 .latest-result {
-  margin-bottom: 12px;
+    margin-bottom: 12px;
 }
 .single-mode-tabs :deep(.ant-tabs-nav) { display: none !important; }
 </style>

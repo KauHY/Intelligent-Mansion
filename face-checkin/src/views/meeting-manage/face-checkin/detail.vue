@@ -3,68 +3,182 @@
     <a-card :title="`会议详情：${meeting?.meetingSubject || meetingId}`">
       <template #extra>
         <a-space>
-          <a-button @click="goBack">返回会议管理</a-button>
-          <a-button type="primary" @click="showEditMeeting">编辑会议</a-button>
-          <a-button @click="toggleDebug">{{ debugVisible ? '退出调试界面' : '进入调试界面' }}</a-button>
+          <a-button @click="goBack">
+            返回会议管理
+          </a-button>
+          <a-button
+            type="primary"
+            @click="showEditMeeting"
+          >
+            编辑会议
+          </a-button>
+          <a-button @click="toggleDebug">
+            {{ debugVisible ? '退出调试界面' : '进入调试界面' }}
+          </a-button>
         </a-space>
       </template>
 
-      <a-descriptions size="small" bordered :column="3" class="meeting-summary">
-        <a-descriptions-item label="会议ID">{{ meetingId }}</a-descriptions-item>
-        <a-descriptions-item label="开始时间">{{ meeting?.meetingTimeStart || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="结束时间">{{ meeting?.meetingTimeEnd || '-' }}</a-descriptions-item>
-        <a-descriptions-item label="考勤开始时间">{{ meeting?.attendanceStartTime || "-" }}</a-descriptions-item>
-        <a-descriptions-item label="考勤截止时间">{{ meeting?.attendanceEndTime || "-" }}</a-descriptions-item>
-        <a-descriptions-item label="与会人数">{{ meeting?.meetingPeopleNum || memberList.length }}</a-descriptions-item>
-        <a-descriptions-item label="备注" :span="2">{{ meeting?.remark || '-' }}</a-descriptions-item>
+      <a-descriptions
+        size="small"
+        bordered
+        :column="3"
+        class="meeting-summary"
+      >
+        <a-descriptions-item label="会议ID">
+          {{ meetingId }}
+        </a-descriptions-item>
+        <a-descriptions-item label="开始时间">
+          {{ meeting?.meetingTimeStart || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="结束时间">
+          {{ meeting?.meetingTimeEnd || '-' }}
+        </a-descriptions-item>
+        <a-descriptions-item label="考勤开始时间">
+          {{ meeting?.attendanceStartTime || "-" }}
+        </a-descriptions-item>
+        <a-descriptions-item label="考勤截止时间">
+          {{ meeting?.attendanceEndTime || "-" }}
+        </a-descriptions-item>
+        <a-descriptions-item label="与会人数">
+          {{ meeting?.meetingPeopleNum || memberList.length }}
+        </a-descriptions-item>
+        <a-descriptions-item
+          label="备注"
+          :span="2"
+        >
+          {{ meeting?.remark || '-' }}
+        </a-descriptions-item>
       </a-descriptions>
 
-      <a-card size="small" title="识别控制" class="section-card">
+      <a-card
+        size="small"
+        title="识别控制"
+        class="section-card"
+      >
         <a-space wrap>
-          <a-button type="primary" :loading="deviceControlLoading" @click="startDevice">启动本会议识别</a-button>
-          <a-button danger :loading="deviceControlLoading" @click="stopDevice">停止识别</a-button>
-          <a-button :loading="deviceControlLoading" @click="refreshDevice">刷新状态</a-button>
+          <a-button
+            type="primary"
+            :loading="deviceControlLoading"
+            @click="startDevice"
+          >
+            启动本会议识别
+          </a-button>
+          <a-button
+            danger
+            :loading="deviceControlLoading"
+            @click="stopDevice"
+          >
+            停止识别
+          </a-button>
+          <a-button
+            :loading="deviceControlLoading"
+            @click="refreshDevice"
+          >
+            刷新状态
+          </a-button>
           <a-tag :color="deviceStatus.running ? 'green' : 'default'">
             {{ deviceStatus.running ? `识别服务运行中${deviceStatus.pid ? ` PID:${deviceStatus.pid}` : ''}` : '识别服务未运行' }}
           </a-tag>
-          <a-tag :color="boardSerialTagColor">{{ boardSerialText }}</a-tag>
-          <a-tag v-if="deviceStatus.meetingReserveId" color="blue">会议：{{ deviceStatus.meetingReserveId }}</a-tag>
+          <a-tag :color="boardSerialTagColor">
+            {{ boardSerialText }}
+          </a-tag>
+          <a-tag
+            v-if="deviceStatus.meetingReserveId"
+            color="blue"
+          >
+            会议：{{ deviceStatus.meetingReserveId }}
+          </a-tag>
         </a-space>
-        <div v-if="latestRequest" class="latest-result">
+        <div
+          v-if="latestRequest"
+          class="latest-result"
+        >
           <span>最近识别：</span>
           <span class="latest-name">{{ latestRequest.personName || '未识别' }}</span>
-          <a-tag :color="latestRequest.result === 'SUCCESS' ? 'green' : 'orange'">{{ requestResultText(latestRequest.result) }}</a-tag>
+          <a-tag :color="latestRequest.result === 'SUCCESS' ? 'green' : 'orange'">
+            {{ requestResultText(latestRequest.result) }}
+          </a-tag>
           <span>{{ latestRequest.acceptTime }}</span>
         </div>
-        <div class="device-tip">请先在本机启动 <code>Start-Device-Control.cmd</code>。</div>
+        <div class="device-tip">
+          请先在本机启动 <code>Start-Device-Control.cmd</code>。
+        </div>
       </a-card>
 
-      <a-card size="small" title="签到名单（按签到时间倒序）" class="section-card">
-        <template #extra><a-button size="small" @click="loadDetail">刷新</a-button></template>
-        <a-table row-key="id" :columns="attendanceColumns" :data-source="attendanceList" :loading="attendanceLoading" :pagination="false" size="middle">
+      <a-card
+        size="small"
+        title="签到名单（按签到时间倒序）"
+        class="section-card"
+      >
+        <template #extra>
+          <a-button
+            size="small"
+            @click="loadDetail"
+          >
+            刷新
+          </a-button>
+        </template>
+        <a-table
+          row-key="id"
+          :columns="attendanceColumns"
+          :data-source="attendanceList"
+          :loading="attendanceLoading"
+          :pagination="false"
+          size="middle"
+        >
           <template #personType="{ record }">
-            <a-tag :color="record.personType === 1 ? 'blue' : 'purple'">{{ personTypeText(record.personType) }}</a-tag>
+            <a-tag :color="record.personType === 1 ? 'blue' : 'purple'">
+              {{ personTypeText(record.personType) }}
+            </a-tag>
           </template>
           <template #participantCategory="{ record }">
-            <a-tag :color="participantCategoryColor(record.participantCategory)">{{ participantCategoryText(record.participantCategory) }}</a-tag>
+            <a-tag :color="participantCategoryColor(record.participantCategory)">
+              {{ participantCategoryText(record.participantCategory) }}
+            </a-tag>
           </template>
           <template #status="{ record }">
-            <a-tag :color="statusColor(record.status)">{{ statusText(record.status) }}</a-tag>
+            <a-tag :color="statusColor(record.status)">
+              {{ statusText(record.status) }}
+            </a-tag>
           </template>
         </a-table>
       </a-card>
 
-      <a-card size="small" title="会议成员" class="section-card">
-        <template #extra><a-button size="small" @click="showEditMeeting">编辑成员</a-button></template>
-        <a-table row-key="id" :columns="memberColumns" :data-source="memberList" :loading="memberLoading" :pagination="false" size="middle">
+      <a-card
+        size="small"
+        title="会议成员"
+        class="section-card"
+      >
+        <template #extra>
+          <a-button
+            size="small"
+            @click="showEditMeeting"
+          >
+            编辑成员
+          </a-button>
+        </template>
+        <a-table
+          row-key="id"
+          :columns="memberColumns"
+          :data-source="memberList"
+          :loading="memberLoading"
+          :pagination="false"
+          size="middle"
+        >
           <template #personType="{ record }">
-            <a-tag :color="record.personType === 1 ? 'blue' : 'purple'">{{ personTypeText(record.personType) }}</a-tag>
+            <a-tag :color="record.personType === 1 ? 'blue' : 'purple'">
+              {{ personTypeText(record.personType) }}
+            </a-tag>
           </template>
         </a-table>
       </a-card>
 
       <template v-if="debugVisible">
-        <a-card size="small" title="板端调试指南" class="section-card">
+        <a-card
+          size="small"
+          title="板端调试指南"
+          class="section-card"
+        >
           <ul class="debug-list">
             <li>Web 启动后看下方「识别日志」，页面每 10 秒自动刷新，包含 <code>[heartbeat]</code>、<code>[connection]</code>、<code>[photo]</code>、<code>[identify]</code>。</li>
             <li>要看本机命令行实时日志，请双击 <code>code\Start-Device-Log.cmd</code>；它会跟随 <code>pc_bridge\device_control.log</code> 输出。</li>
@@ -74,26 +188,61 @@
           </ul>
         </a-card>
 
-        <a-card size="small" title="板端日志（COM5）" class="section-card">
-          <template #extra><a-button size="small" @click="loadLogs">刷新</a-button></template>
+        <a-card
+          size="small"
+          title="板端日志（COM5）"
+          class="section-card"
+        >
+          <template #extra>
+            <a-button
+              size="small"
+              @click="loadLogs"
+            >
+              刷新
+            </a-button>
+          </template>
           <pre class="log-view board-log-view">{{ boardLogLines.join('\n') || '暂无板端日志' }}</pre>
         </a-card>
 
-        <a-card size="small" title="桥接日志" class="section-card">
-          <template #extra><a-button size="small" @click="loadLogs">刷新</a-button></template>
+        <a-card
+          size="small"
+          title="桥接日志"
+          class="section-card"
+        >
+          <template #extra>
+            <a-button
+              size="small"
+              @click="loadLogs"
+            >
+              刷新
+            </a-button>
+          </template>
           <pre class="log-view">{{ logLines.join('\n') || '暂无日志' }}</pre>
         </a-card>
       </template>
     </a-card>
 
-    <a-modal v-model:visible="meetingModalVisible" title="编辑会议与成员" width="720px" @ok="saveMeeting">
+    <a-modal
+      v-model:visible="meetingModalVisible"
+      title="编辑会议与成员"
+      width="720px"
+      @ok="saveMeeting"
+    >
       <a-form layout="vertical">
         <a-row :gutter="16">
           <a-col :span="24">
-            <a-form-item label="会议主题" required><a-input v-model:value="meetingForm.meetingSubject" /></a-form-item>
+            <a-form-item
+              label="会议主题"
+              required
+            >
+              <a-input v-model:value="meetingForm.meetingSubject" />
+            </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="开始时间" required>
+            <a-form-item
+              label="开始时间"
+              required
+            >
               <a-date-picker
                 v-model:value="meetingForm.meetingTimeStart"
                 :show-time="{ format: 'HH:mm' }"
@@ -104,10 +253,22 @@
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="持续时间" required><a-select v-model:value="meetingForm.durationMinutes" :options="durationOptions" style="width: 100%;" /></a-form-item>
+            <a-form-item
+              label="持续时间"
+              required
+            >
+              <a-select
+                v-model:value="meetingForm.durationMinutes"
+                :options="durationOptions"
+                style="width: 100%;"
+              />
+            </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="考勤开始时间" required>
+            <a-form-item
+              label="考勤开始时间"
+              required
+            >
               <a-date-picker
                 v-model:value="meetingForm.attendanceTimeStart"
                 :show-time="{ format: 'HH:mm' }"
@@ -118,7 +279,10 @@
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="考勤截止时间" required>
+            <a-form-item
+              label="考勤截止时间"
+              required
+            >
               <a-date-picker
                 v-model:value="meetingForm.attendanceTimeEnd"
                 :show-time="{ format: 'HH:mm' }"
@@ -129,7 +293,10 @@
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="与会人员" required>
+            <a-form-item
+              label="与会人员"
+              required
+            >
               <a-select
                 v-model:value="meetingForm.personIds"
                 mode="multiple"
@@ -140,7 +307,9 @@
             </a-form-item>
           </a-col>
           <a-col :span="24">
-            <a-form-item label="备注"><a-textarea v-model:value="meetingForm.remark" /></a-form-item>
+            <a-form-item label="备注">
+              <a-textarea v-model:value="meetingForm.remark" />
+            </a-form-item>
           </a-col>
         </a-row>
       </a-form>
@@ -149,7 +318,9 @@
 </template>
 
 <script lang="ts">
-import { computed, defineComponent, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import {
+  computed, defineComponent, onMounted, onUnmounted, reactive, ref, watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 import { message } from 'ant-design-vue';
 import request from '~utils/axios';
@@ -158,21 +329,39 @@ const PREFIX = 'park-meeting/face-checkin';
 const DEVICE_TOKEN = 'local-device-control-token';
 
 const attendanceColumns = [
-  { title: '签到时间', dataIndex: 'checkinTime', key: 'checkinTime', width: 180 },
-  { title: '姓名', dataIndex: 'personName', key: 'personName', width: 130 },
-  { title: '识别分类', key: 'participantCategory', slots: { customRender: 'participantCategory' }, width: 110 },
-  { title: '工号', dataIndex: 'employeeNo', key: 'employeeNo', width: 120 },
-  { title: '员工类型', key: 'personType', slots: { customRender: 'personType' }, width: 110 },
-  { title: '状态', key: 'status', slots: { customRender: 'status' }, width: 130 },
-  { title: '备注', dataIndex: 'remark', key: 'remark', width: 110 },
-  { title: '设备ID', dataIndex: 'deviceId', key: 'deviceId', width: 140 },
+  {
+    title: '签到时间', dataIndex: 'checkinTime', key: 'checkinTime', width: 180,
+  },
+  {
+    title: '姓名', dataIndex: 'personName', key: 'personName', width: 130,
+  },
+  {
+    title: '识别分类', key: 'participantCategory', slots: { customRender: 'participantCategory' }, width: 110,
+  },
+  {
+    title: '工号', dataIndex: 'employeeNo', key: 'employeeNo', width: 120,
+  },
+  {
+    title: '员工类型', key: 'personType', slots: { customRender: 'personType' }, width: 110,
+  },
+  {
+    title: '状态', key: 'status', slots: { customRender: 'status' }, width: 130,
+  },
+  {
+    title: '备注', dataIndex: 'remark', key: 'remark', width: 110,
+  },
+  {
+    title: '设备ID', dataIndex: 'deviceId', key: 'deviceId', width: 140,
+  },
   { title: '请求ID', dataIndex: 'requestId', key: 'requestId' },
 ];
 
 const memberColumns = [
   { title: '姓名', dataIndex: 'personName', key: 'personName' },
   { title: '工号', dataIndex: 'employeeNo', key: 'employeeNo' },
-  { title: '员工类型', key: 'personType', slots: { customRender: 'personType' }, width: 120 },
+  {
+    title: '员工类型', key: 'personType', slots: { customRender: 'personType' }, width: 120,
+  },
 ];
 
 export default defineComponent({
@@ -235,17 +424,21 @@ export default defineComponent({
     const boardSerialTagColor = computed(() => (deviceStatus.boardSerial?.status === 'connected' ? 'green' : 'orange'));
 
     const personTypeText = (value: any) => {
-  const type = Number(value);
-  if (type === 1) return '工作人员';
-  if (type === 2) return '访客';
-  return '未知';
-};
+      const type = Number(value);
+      if (type === 1) return '工作人员';
+      if (type === 2) return '访客';
+      return '未知';
+    };
     const statusText = (status: number) => {
-      const names: Record<number, string> = { 1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败' };
+      const names: Record<number, string> = {
+        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
+      };
       return names[status] || '未知状态';
     };
     const statusColor = (status: number) => {
-      const colors: Record<number, string> = { 1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red' };
+      const colors: Record<number, string> = {
+        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red',
+      };
       return colors[status] || 'default';
     };
     const requestResultText = (result: string) => {
@@ -272,7 +465,13 @@ export default defineComponent({
       if (!meetingId.value) return;
       attendanceLoading.value = true;
       try {
-        const { data } = await request({ url: `${PREFIX}/attendance/list`, method: 'GET', params: { meetingReserveId: meetingId.value } });
+        // hiddenLoading：轮询请求不打全屏遮罩，避免 10s 一次的 loading 闪烁
+        const { data } = await request({
+          url: `${PREFIX}/attendance/list`,
+          method: 'GET',
+          params: { meetingReserveId: meetingId.value },
+          hiddenLoading: true,
+        });
         attendanceList.value = data || [];
       } catch {
         attendanceList.value = [];
@@ -302,9 +501,9 @@ export default defineComponent({
         personOptions.value = (data?.list || [])
           .filter((item: any) => item.status === 1 && item.auditStatus === 1)
           .map((item: any) => ({
-          value: item.id,
-          label: `${item.personName || item.id}${item.employeeNo ? ` (${item.employeeNo})` : ''}`,
-        }));
+            value: item.id,
+            label: `${item.personName || item.id}${item.employeeNo ? ` (${item.employeeNo})` : ''}`,
+          }));
       } catch {
         personOptions.value = [];
       }
@@ -354,16 +553,20 @@ export default defineComponent({
       if (meetingForm.attendanceTimeEnd < meetingForm.attendanceTimeStart) { message.error('考勤截止时间不能早于考勤开始时间'); return; }
       if (meetingForm.attendanceTimeStart < meetingForm.meetingTimeStart || meetingForm.attendanceTimeEnd > meetingTimeEnd.slice(0, 16)) { message.error('考勤时间需在会议持续时间内'); return; }
       try {
-        await request({ url: `${PREFIX}/meeting/update`, method: 'POST', data: {
-          id: meetingForm.id,
-          meetingSubject: meetingForm.meetingSubject,
-          meetingTimeStart,
-          meetingTimeEnd,
-          attendanceStartTime: `${meetingForm.attendanceTimeStart}:00`,
-          attendanceEndTime: `${meetingForm.attendanceTimeEnd}:00`,
-          personIds: meetingForm.personIds,
-          remark: meetingForm.remark,
-        } });
+        await request({
+          url: `${PREFIX}/meeting/update`,
+          method: 'POST',
+          data: {
+            id: meetingForm.id,
+            meetingSubject: meetingForm.meetingSubject,
+            meetingTimeStart,
+            meetingTimeEnd,
+            attendanceStartTime: `${meetingForm.attendanceTimeStart}:00`,
+            attendanceEndTime: `${meetingForm.attendanceTimeEnd}:00`,
+            personIds: meetingForm.personIds,
+            remark: meetingForm.remark,
+          },
+        });
         message.success('保存成功');
         meetingModalVisible.value = false;
         await Promise.all([loadMeeting(), loadMembers()]);
@@ -374,7 +577,12 @@ export default defineComponent({
 
     const loadRequests = async () => {
       try {
-        const { data } = await request({ url: `${PREFIX}/request/list`, method: 'GET', params: { meetingReserveId: meetingId.value || undefined } });
+        const { data } = await request({
+          url: `${PREFIX}/request/list`,
+          method: 'GET',
+          params: { meetingReserveId: meetingId.value || undefined },
+          hiddenLoading: true,
+        });
         requestList.value = data || [];
       } catch {
         requestList.value = [];
@@ -412,7 +620,15 @@ export default defineComponent({
         const result = await response.json();
         Object.assign(deviceStatus, result.data || {});
       } catch {
-        Object.assign(deviceStatus, { running: false, pid: null, meetingReserveId: null, exitCode: null, boardSerial: { status: 'failed', detail: '无法连接设备控制服务', port: 'COM3', baud: 115200 } });
+        Object.assign(deviceStatus, {
+          running: false,
+          pid: null,
+          meetingReserveId: null,
+          exitCode: null,
+          boardSerial: {
+            status: 'failed', detail: '无法连接设备控制服务', port: 'COM3', baud: 115200,
+          },
+        });
       }
     };
 
@@ -449,16 +665,42 @@ export default defineComponent({
     watch(meetingId, loadDetail);
 
     return {
-      meetingId, meeting, goBack, loadDetail,
-      attendanceList, attendanceLoading, attendanceColumns, loadAttendance,
-      memberList, memberLoading, memberColumns,
-      debugVisible, toggleDebug,
-      meetingModalVisible, meetingForm, durationOptions, personOptions,
-      showEditMeeting, saveMeeting,
-      deviceControlLoading, deviceStatus, startDevice, stopDevice, refreshDevice,
-      latestRequest, requestResultText, personTypeText, statusText, statusColor, boardLogLines, boardSerialText, boardSerialTagColor,
-      participantCategoryText, participantCategoryColor,
-      logLines, loadLogs,
+      meetingId,
+      meeting,
+      goBack,
+      loadDetail,
+      attendanceList,
+      attendanceLoading,
+      attendanceColumns,
+      loadAttendance,
+      memberList,
+      memberLoading,
+      memberColumns,
+      debugVisible,
+      toggleDebug,
+      meetingModalVisible,
+      meetingForm,
+      durationOptions,
+      personOptions,
+      showEditMeeting,
+      saveMeeting,
+      deviceControlLoading,
+      deviceStatus,
+      startDevice,
+      stopDevice,
+      refreshDevice,
+      latestRequest,
+      requestResultText,
+      personTypeText,
+      statusText,
+      statusColor,
+      boardLogLines,
+      boardSerialText,
+      boardSerialTagColor,
+      participantCategoryText,
+      participantCategoryColor,
+      logLines,
+      loadLogs,
     };
   },
 });
@@ -468,37 +710,40 @@ export default defineComponent({
 .meeting-summary { margin-bottom: 16px; }
 .section-card { margin-bottom: 16px; }
 .latest-result { margin-top: 12px; }
+
 .latest-name {
-  font-weight: 600;
-  margin: 0 8px;
+    margin: 0 8px;
+    font-weight: 600;
 }
+
 .debug-list {
-  padding-left: 20px;
-  margin: 0;
+    padding-left: 20px;
+    margin: 0;
 }
 
 .debug-list li {
-  margin-bottom: 6px;
+    margin-bottom: 6px;
 }
 
 .board-log-view {
-  max-height: 220px;
+    max-height: 220px;
 }
 
 .device-tip {
-  margin-top: 12px;
-  color: #666;
-  font-size: 12px;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #666;
 }
+
 .log-view {
-  margin: 0;
-  max-height: 280px;
-  overflow: auto;
-  background: #111;
-  color: #d5f5e3;
-  padding: 12px;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  word-break: break-all;
+    max-height: 280px;
+    padding: 12px;
+    margin: 0;
+    overflow: auto;
+    color: #d5f5e3;
+    word-break: break-all;
+    white-space: pre-wrap;
+    background: #111;
+    border-radius: 4px;
 }
 </style>

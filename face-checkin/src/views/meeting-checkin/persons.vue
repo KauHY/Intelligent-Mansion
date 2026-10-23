@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <FaceCheckinIndex mode="persons" />
 </template>
 

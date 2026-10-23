@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <FaceCheckinIndex mode="attendance" />
 </template>
 

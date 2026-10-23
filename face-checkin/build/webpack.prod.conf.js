@@ -19,7 +19,8 @@ const compileConf = require('../config')
 const { getDllPlugins, resolve } = require('./utils')
 const config = merge(baseConfig, {
     mode: 'production',
-    devtool: 'source-map',
+    // 生产不产出 .map：此前 743 个 sourcemap 占 54MB，且线上无需断点映射；排查线上问题时再临时打开
+    devtool: false,
     stats: 'errors-only',
     output: {
         filename: 'js/[name].[contenthash].js',

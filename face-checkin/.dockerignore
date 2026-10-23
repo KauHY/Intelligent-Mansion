@@ -1,0 +1,10 @@
+node_modules
+packages
+dist
+wisdom-park
+wisdom-park-sit
+wisdom-park-webpack
+wisdom-park-vite
+data
+.history
+.git
