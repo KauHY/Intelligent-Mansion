@@ -1,0 +1,5 @@
+//添加park-meeting服务的路由
+  - id: meeting
+uri: lb://park-meeting
+predicates:
+  - Path=/smartPark/park-meeting/**

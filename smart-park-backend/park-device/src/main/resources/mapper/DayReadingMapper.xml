@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.device.mapper.DayReadingMapper">
+
+    <!--        SELECT-->
+    <!--        a.device_id,-->
+    <!--        a.reading_date,-->
+    <!--        a.start_reading_num,-->
+    <!--        a.end_reading_num,-->
+    <!--        a.consumption,-->
+    <!--        a.reading_date_time-->
+    <!--        FROM dev_day_reading a-->
+    <!--        WHERE a.reading_date = (SELECT max(reading_date)-->
+    <!--        FROM dev_day_reading b-->
+    <!--        WHERE a.device_id = b.device_id-->
+    <!--        <if test="start !=null">-->
+    <!--            and b.reading_date &gt; #{start}-->
+    <!--        </if>-->
+    <!--        <if test="end !=null">-->
+    <!--            and b.reading_date &lt; #{end}-->
+    <!--        </if>-->
+    <!--        GROUP BY b.device_id-->
+    <!--        )-->
+    <select id="queryMaxAllRecord" resultType="com.crlink.smartpark.device.entity.DayReading">
+        SELECT
+        a.device_id,
+        a.reading_date,
+        a.start_reading_num,
+        a.end_reading_num,
+        a.consumption,
+        a.reading_date_time
+        from dev_day_reading a
+        inner join (select device_id, max(reading_date) mrd
+        FROM dev_day_reading
+        <where>
+            <if test="start !=null">
+                and reading_date &gt; #{start}
+            </if>
+            <if test="end !=null">
+                and reading_date &lt;= #{end}
+            </if>
+        </where>
+        group by device_id) b on a.device_id = b.device_id and a.reading_date = b.mrd;
+    </select>
+</mapper>

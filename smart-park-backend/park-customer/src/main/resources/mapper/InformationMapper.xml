@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.InformationMapper">
+
+    <select id="pageInformationList" resultMap="information">
+        select i.id,
+        i.title,
+        i.popuped,
+        i.publish_time_start,
+        i.publish_time_end,
+        i.summary,
+        i.content,
+        i.content_type,
+        i.picture,
+        i.status,
+        i.create_time
+        from cus_information i
+        <where>
+            and i.deleted=0
+            <if test="param.title !=null and param.title !=''">
+                and i.title like "%"#{param.title}"%"
+            </if>
+            <if test="param.infoType !=null ">
+                and i.info_type=#{param.infoType}
+            </if>
+            <if test="param.contentType !=null ">
+                and i.content_type=#{param.contentType}
+            </if>
+            <if test="param.effectTimeStart !=null ">
+                and i.effect_time_start&gt;#{param.effectTimeStart}
+            </if>
+            <if test="param.effectTimeEnd !=null ">
+                and i.effect_time_end &lt;#{param.effectTimeEnd}
+            </if>
+            <if test="param.publishStatus !=null and param.publishStatus==1 ">
+                and i.effect_time_start &lt; now()
+            </if>
+            <if test="param.publishStatus !=null and param.publishStatus==0 ">
+                and i.effect_time_start &gt; now()
+            </if>
+            and i.id in ( select r.business_id from cus_business_park_relation r
+            <where>
+                and r.business_type = 1
+                and r.deleted = 0
+                <choose>
+                    <when test="param.parkOrgId !=null and param.parkOrgId !=''">
+                        and r.park_org_id=#{param.parkOrgId}
+                    </when>
+                    <otherwise>
+                        and r.park_org_id in
+                        <foreach item="item" index="index" collection="parkOrgIds" open="(" close=")" separator=",">
+                            #{item}
+                        </foreach>
+                    </otherwise>
+                </choose>
+            </where>
+            )
+        </where>
+        order by i.create_time desc
+    </select>
+
+
+    <resultMap id="information" type="com.crlink.smartpark.customer.entity.Information" autoMapping="true">
+        <collection property="parkOrgIds" column="id" select="selectParkOrgIdsById"/>
+    </resultMap>
+    <select id="selectParkOrgIdsById" resultType="string">
+        select park_org_id
+        from cus_business_park_relation
+        where business_id = #{id}
+          and business_type = 1
+          and deleted = 0
+    </select>
+
+</mapper>

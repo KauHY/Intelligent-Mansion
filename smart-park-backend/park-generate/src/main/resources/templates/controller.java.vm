@@ -1,0 +1,97 @@
+package ${package.Controller};
+
+import io.swagger.annotations.ApiOperation;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import com.github.pagehelper.PageInfo;
+import org.springframework.util.StringUtils;
+import com.crlink.smartpark.common.utils.AssertUtil;
+
+import com.crlink.smartpark.common.web.ResponseResult;
+import ${package.Controller.replace('controller', 'model')}.query.${entity}Query;
+import ${package.Controller.replace('controller', 'model')}.${entity}ReqDTO;
+import ${package.Entity.replace('entity', 'dto')}.${entity}DTO;
+import ${package.Service}.${table.serviceName};
+
+#if(${restControllerStyle})
+import org.springframework.web.bind.annotation.RestController;
+#else
+import org.springframework.stereotype.Controller;
+#end
+#if(${superControllerClassPackage})
+import ${superControllerClassPackage};
+#end
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * ${cfg.serverName}
+ * $!{table.comment}
+ *
+ * @author ${author}
+ * @since ${date}
+ */
+@Slf4j
+#if(${restControllerStyle})
+@RestController
+#else
+@Controller
+#end
+@RequestMapping("#if(${package.ModuleName})/${package.ModuleName}#end/#if(${controllerMappingHyphenStyle})${controllerMappingHyphen}#else${table.entityPath}#end")
+@Validated
+#if(${kotlin})
+class ${table.controllerName}#if(${superControllerClass}) : ${superControllerClass}()#end
+
+#else
+#if(${superControllerClass})
+public class ${table.controllerName} extends ${superControllerClass} {
+#else
+public class ${table.controllerName} {
+#end
+
+    @Autowired
+    private ${table.serviceName} ${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)};
+
+
+    @ApiOperation(value = "$!{table.comment}-新增", tags = "$!{table.comment}")
+    @PostMapping("/create")
+    public ResponseResult<Boolean> create(@RequestBody @Valid ${entity}ReqDTO reqDTO) {
+        reqDTO.setId(null);
+        return ResponseResult.success(${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}.saveOrUpdate${entity}(reqDTO));
+    }
+
+
+    @ApiOperation(value = "$!{table.comment}-删除", tags = "$!{table.comment}")
+    @DeleteMapping("/remove/{id}")
+    public ResponseResult<Boolean> remove(@PathVariable("id") @NotEmpty(message = "id不能为空") String id) {
+        return ResponseResult.success(${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}.removeById(id));
+    }
+
+
+    @ApiOperation(value = "$!{table.comment}-根据ID查询", tags = "$!{table.comment}")
+    @GetMapping("/findById/{id}")
+    public ResponseResult<${entity}DTO> findById(@PathVariable("id") @NotEmpty(message = "id不能为空") String id) {
+        return ResponseResult.success(${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}.get${entity}ById(id));
+    }
+
+
+    @ApiOperation(value = "$!{table.comment}-修改", tags = "$!{table.comment}")
+    @PostMapping("/modify")
+    public ResponseResult<Boolean> modify(@RequestBody @Valid ${entity}ReqDTO reqDTO) {
+        AssertUtil.requireTrue(StringUtils.hasText(reqDTO.getId()), "10007");
+        return ResponseResult.success(${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}.saveOrUpdate${entity}(reqDTO));
+    }
+
+
+    @ApiOperation(value = "$!{table.comment}-分页查询", tags = "$!{table.comment}")
+    @PostMapping("/list${entity}Page")
+    public ResponseResult<PageInfo<${entity}DTO>> list${entity}Page(@RequestBody @Valid ${entity}Query query){
+        return ResponseResult.success(${table.serviceName.substring(0,1).toLowerCase()}${table.serviceName.substring(1)}.list${entity}Page(query));
+    }
+
+}
+
+#end

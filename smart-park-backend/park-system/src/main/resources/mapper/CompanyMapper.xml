@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.CompanyMapper">
+
+    <select id="listCompany" resultType="com.crlink.smartpark.system.vo.CompanyListVO"
+            parameterType="com.crlink.smartpark.system.query.CompanyQuery">
+        select
+        sc.id ,
+        sc.name,
+        sc.code,
+        sc.company_type,
+        sc.industry_field,
+        sc.company_taxes_type,
+        sc.enterprise_size,
+        sc.house_count,
+        sc.address,
+        sc.contacts,
+        sc.tel,
+        sc.create_time,
+        sc.park_org_id,
+        sc.licenses,
+        sc.source,
+        sc.status,
+        sp.org_name parkOrgName from sys_company sc
+        left join sys_organization sp on sp.id = sc.park_org_id
+        <where>
+            sc.deleted = 0
+            <if test="name!=null and name!=''">
+                and sc.name like "%"#{name}"%"
+            </if>
+
+            <if test="parkOrgId !=null and parkOrgId !=''">
+                and sc.park_org_id= #{parkOrgId}
+            </if>
+
+            <if test="code !=null and code !=''">
+                and sc.code= #{code}
+            </if>
+
+            <if test="companyType!=null ">
+                and sc.company_type = #{companyType}
+            </if>
+
+            <if test="status!=null ">
+                and sc.status = #{status}
+            </if>
+
+            <if test="parkOrgIds !=null and parkOrgIds.size()> 0">
+                and sc.park_org_id in
+                <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+
+        </where>
+        order by sc.create_time desc
+    </select>
+</mapper>

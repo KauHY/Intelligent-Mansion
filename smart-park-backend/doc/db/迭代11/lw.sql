@@ -1,0 +1,1 @@
+INSERT INTO `smart-park`.`sys_dictionary` (`id`, `parent_id`, `type`, `desc`, `code`, `label`, `value`, `sort`, `create_time`, `update_time`, `deleted`) VALUES ('BENEFICIARY_1', NULL, 'BENEFICIARY', '收款方', 'HUAI_AN', '淮安智慧谷对公账户', 0, 0, '2021-09-07 17:13:39', '2021-12-09 17:23:24', 0);

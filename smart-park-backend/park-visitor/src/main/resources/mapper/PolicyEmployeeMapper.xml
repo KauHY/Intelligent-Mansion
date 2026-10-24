@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.visitor.mapper.PolicyEmployeeMapper">
+
+    <!--<insert id="saveBatch" parameterType="java.util.List">
+        INSERT INTO vis_policy_employee ( policy_id, company_id, employee_id, device_person_id, card_no, device_ids ) VALUES
+        <foreach collection="records" item="itm" separator="," open="(" close=")">
+            #{itm.policyId}, #{itm.companyId},#{itm.employeeId}, #{itm.devicePersonId},#{itm.cardNo}, #{itm.deviceIds,jdbcType=VARCHAR}
+        </foreach>
+    </insert>-->
+</mapper>

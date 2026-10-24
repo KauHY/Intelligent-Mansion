@@ -1,0 +1,23 @@
+/**
+ * Ant Design Vue 组件样式微调 - 主入口
+ * 用途：提升智慧楼宇后台管理系统的专业感和科技感
+ * 原则：不影响原有功能，易于维护和回滚
+ *
+ * 使用方法：
+ * 1. 全量引入：直接在 main.ts 中引入本文件（默认）
+ * 2. 按需引入：注释掉不需要的 @import 行
+ */
+
+@import './variables';
+@import './base';
+@import './scrollbar';
+@import './button';
+@import './input';
+@import './select';
+@import './table';
+@import './form';
+@import './card';
+@import './modal';
+@import './menu';
+@import './tabs';
+@import './pagination';

@@ -1,0 +1,2 @@
+//添加白名单
+/smartPark/park-common/file/getFile,/smartPark/park-customer/parkManagement/notice/wx/homepage/*,/smartPark/park-customer/parkManagement/information/wx/homepage/*

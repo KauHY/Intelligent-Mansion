@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.inspection.mapper.InspectionCircuitMapper">
+
+
+    <select id="queryPointByCircuitIds" resultMap="circuitPointEntity">
+        select c.id cid,
+        p.id pid,
+        p.location,
+        p.point_name,
+        p.type
+        from ins_inspection_circuit c
+        left join ins_circuit_point_relation r on c.id = r.circuit_id and r.deleted = 0
+        left join ins_inspection_point p on r.point_id=p.id and p.deleted=0
+        <where>
+            c.id in
+            <foreach collection="circuitIds" item="circuitId" open="(" close=")" separator=",">
+                #{circuitId}
+            </foreach>
+        </where>
+        order by cid,r.sort
+    </select>
+
+    <resultMap id="circuitPointEntity" type="com.crlink.smartpark.inspection.dto.resultmap.CircuitPointEntity"
+               autoMapping="true">
+        <id column="cid" property="circuitId"></id>
+        <collection property="points" column="pid"
+                    ofType="com.crlink.smartpark.inspection.dto.InspectionPointDTO" autoMapping="true">
+            <id column="pid" property="id"></id>
+        </collection>
+    </resultMap>
+</mapper>

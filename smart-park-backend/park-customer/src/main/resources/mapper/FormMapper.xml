@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.FormMapper">
+
+    <select id="querySubmittedForms" resultType="com.crlink.smartpark.customer.dto.FormEditorsDTO">
+        select f.id,f.title,f.cycle,s.create_time,s.id submissionId,s.employee_id
+        from cus_form f
+        inner join cus_form_submission s on f.id = s.form_id
+        <where>
+            f.deleted=0 and s.deleted=0
+            and
+            s.employee_id=#{employeeId}
+        </where>
+        order by s.create_time desc
+    </select>
+
+    <select id="queryReceivedForms" resultType="com.crlink.smartpark.customer.dto.FormEditorsDTO">
+        select f.id,f.title,f.cycle,s.create_time,s.employee_id,s.id submissionId,s.employee_id
+        from cus_form f
+        inner join cus_form_submission s on f.id = s.form_id
+        <where>
+            f.deleted=0 and s.deleted=0
+            and
+            json_contains(s.received_employee_ids,concat('"',#{employeeId},'"'))
+            <if test="title!=null and title !='' ">
+                and f.title like concat('%',#{title},'%')
+            </if>
+        </where>
+        order by s.create_time desc
+    </select>
+
+</mapper>

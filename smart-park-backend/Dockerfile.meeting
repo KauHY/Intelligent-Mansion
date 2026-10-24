@@ -1,0 +1,13 @@
+FROM maven:3.8-openjdk-8 AS builder
+WORKDIR /build
+COPY . .
+RUN mvn -s settings.xml package -pl park-meeting -am -DskipTests -q
+
+FROM eclipse-temurin:8-jre-alpine
+WORKDIR /app
+COPY --from=builder /build/park-meeting/target/*.jar app.jar
+ENV TZ=Asia/Shanghai
+ENV PARAMS="--spring.profiles.active=docker"
+EXPOSE 30011
+ENTRYPOINT ["sh", "-c", "java -Xmx512m -Dfile.encoding=utf8 -Duser.timezone=Asia/Shanghai -jar app.jar $PARAMS"]
+

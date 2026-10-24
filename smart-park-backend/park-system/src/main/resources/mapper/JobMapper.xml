@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.system.mapper.JobMapper">
+
+    <!--    <select id="pageJobList" resultType="com.crlink.smartpark.system.dto.job.JobDTO">-->
+    <!--        select j.id,-->
+    <!--        j.job_code,-->
+    <!--        j.park_org_id,-->
+    <!--        j.company_id-->
+    <!--        from job j-->
+    <!--        left join on job_employee_relation jr-->
+    <!--        on j.id=jr.job_id jr.deleted=0-->
+    <!--        where j.deleted=0 and j.park_org_id in-->
+    <!--        <foreach collection="parkOrgIds" item="parkOrgId" open="(" close=")" separator=",">#{parkOrgId}</foreach>-->
+    <!--    </select>-->
+</mapper>

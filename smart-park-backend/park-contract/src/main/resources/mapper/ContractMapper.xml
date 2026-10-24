@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.contract.mapper.ContractMapper">
+
+    <select id="queryEffectiveContractHouseIds" resultType="java.lang.String">
+        select ch.house_id
+        from con_contract cc
+        inner join con_house_relation ch on cc.id=ch.pk_id
+        <where>
+            ch.type=1
+            and cc.deleted=0
+            and ch.deleted=0
+            and cc.state=4
+        </where>
+    </select>
+</mapper>

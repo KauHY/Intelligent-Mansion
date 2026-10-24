@@ -1,0 +1,12 @@
+server:
+  port: 30013
+  servlet:
+    context-path: /smartPark/park-industrial
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/smart-park'
+spring:
+  application:
+    name: park-industrial
+  profiles:
+    active: dev

@@ -1,0 +1,1 @@
+UPDATE sys_dictionary SET label = '履约保证金' WHERE id = 'FEE_TYPE-7'

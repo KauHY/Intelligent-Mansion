@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.ProStockRecordMapper">
+
+    <select id="listPage" resultType="com.crlink.smartpark.customer.dto.ProStockRecordDTO">
+
+        SELECT cpsr.id,
+        cpsr.park_org_id,
+        cpsr.goods_id,
+        cpsr.stock_id,
+        cpsr.record_no,
+        cpsr.stock_in_num,
+        cpsr.stock_in_unit_price,
+        cpsr.current_num,
+        cpsr.current_average_price,
+        cpsr.stock_type,
+        cpsr.remark,
+        cpsr.stock_mode,
+        goods_type,
+        goods_no,
+        unit,
+        goods_name,
+        cpsr.create_by,
+        cpsr.update_time
+        FROM cus_pro_stock_record cpsr
+        LEFT JOIN cus_pro_goods_manager cpgm ON cpsr.goods_id = cpgm.id
+        WHERE cpsr.deleted = 0
+        AND cpgm.deleted = 0
+        <if test="query.parkOrgId!=null and query.parkOrgId!=''">
+            and cpsr.park_org_id = #{query.parkOrgId}
+        </if>
+        and cpsr.park_org_id in
+        <foreach item="item" index="index" collection="parkOrgIds" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        <if test="query.goodsName!=null and query.goodsName!=''">
+            and goods_name like concat('%',#{query.goodsName},'%')
+        </if>
+        <if test="query.stockType!=null and query.stockType!=''">
+            and cpsr.stock_type = #{query.stockType}
+        </if>
+        <if test="query.stockInTimeStart!=null and query.stockInTimeEnd!=null">
+            and cpsr.create_time between #{query.stockInTimeStart} and #{query.stockInTimeEnd}
+        </if>
+
+        ORDER BY cpsr.create_time DESC
+    </select>
+</mapper>

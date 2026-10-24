@@ -1,0 +1,12 @@
+server:
+  port: 30008
+  servlet:
+    context-path: /smartPark/park-inspection
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/park-inspection'
+spring:
+  application:
+    name: park-inspection
+  profiles:
+    active: dev

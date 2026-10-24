@@ -1,0 +1,6 @@
+# park-common.yaml下添加 20220614
+param:
+  wx:
+    timeOut: 60000
+    proxyIP: 'crproxy.crcloud.com'
+    proxyPort: 80

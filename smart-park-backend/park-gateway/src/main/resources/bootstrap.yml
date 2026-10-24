@@ -1,0 +1,9 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /smartPark
+spring:
+  application:
+    name: park-gateway
+  profiles:
+    active: dev

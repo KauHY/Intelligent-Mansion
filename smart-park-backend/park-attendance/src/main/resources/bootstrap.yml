@@ -1,0 +1,12 @@
+server:
+  port: 30012
+  servlet:
+    context-path: /smartPark/park-attendance
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/smart-park'
+spring:
+  application:
+    name: park-attendance
+  profiles:
+    active: dev

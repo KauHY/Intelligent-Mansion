@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import base64
 import os
 import sys
 import urllib.error
@@ -25,7 +26,7 @@ SFACE_NAME = "face_recognition_sface_2021dec.onnx"
 MODEL_DIR = Path(__file__).resolve().parent / "models"
 
 # OpenCV Zoo 对 SFace 余弦相似度给出的推荐阈值。
-DEFAULT_THRESHOLD = 0.363
+DEFAULT_THRESHOLD = 0.50
 # 采集图只有 320x240，检测阈值适当放宽。
 DEFAULT_DET_THRESHOLD = 0.6
 
@@ -69,6 +70,15 @@ class MatchResult:
     image_size1: tuple[int, int] | None = None
     image_size2: tuple[int, int] | None = None
     note: str = ""
+
+
+@dataclass(frozen=True)
+class FaceFeatureResult:
+    success: bool
+    feature: np.ndarray | None = None
+    face_count: int = 0
+    image_size: tuple[int, int] | None = None
+    reason: str = ""
 
 
 def _require_cv2() -> None:
@@ -170,6 +180,24 @@ def read_image(path: Path | str) -> np.ndarray:
     return image
 
 
+def _ascii_safe_path(path: Path) -> str:
+    """Copy model to a temp path without non-ASCII characters if needed.
+
+    OpenCV DNN cannot reliably load ONNX files from paths containing
+    non-ASCII characters (e.g. Chinese) on Windows. Copy to a temp
+    directory when the resolved path is not pure ASCII.
+    """
+    resolved = str(path.resolve())
+    if resolved.isascii():
+        return resolved
+    import shutil
+    import tempfile
+    tmp_dir = Path(tempfile.mkdtemp(prefix="face_match_"))
+    tmp_path = tmp_dir / path.name
+    shutil.copy2(resolved, tmp_path)
+    return str(tmp_path)
+
+
 def _load_models(
     model_dir: Path | str,
     allow_download: bool,
@@ -184,9 +212,9 @@ def _load_models(
         return cached
     try:
         detector = cv2.FaceDetectorYN.create(
-            str(yunet), "", (320, 320), float(det_threshold), 0.3, 5000
+            _ascii_safe_path(yunet), "", (320, 320), float(det_threshold), 0.3, 5000
         )
-        recognizer = cv2.FaceRecognizerSF.create(str(sface), "")
+        recognizer = cv2.FaceRecognizerSF.create(_ascii_safe_path(sface), "")
     except cv2.error as exc:
         raise FaceMatchError(
             f"模型加载失败：{exc}。请删除 {Path(model_dir)} 下的模型文件后重新下载，"
@@ -284,4 +312,107 @@ def match_faces(
         image_size1=size1,
         image_size2=size2,
         note=note,
+    )
+
+
+def extract_face_feature(
+    path: Path | str,
+    *,
+    require_single_face: bool = True,
+    model_dir: Path | str = MODEL_DIR,
+    allow_download: bool = True,
+    det_threshold: float = DEFAULT_DET_THRESHOLD,
+) -> FaceFeatureResult:
+    """提取一张图片中最大人脸的 SFace 特征。
+
+    报名照要求 require_single_face=True，避免合影被错误登记成某个人的模板。
+    """
+    detector, recognizer = _load_models(model_dir, allow_download, det_threshold)
+    image = read_image(path)
+    face, face_count = detect_largest_face(detector, image)
+    size = (int(image.shape[1]), int(image.shape[0]))
+    if face is None:
+        return FaceFeatureResult(False, None, face_count, size, "图片未检测到人脸")
+    if require_single_face and face_count != 1:
+        return FaceFeatureResult(
+            False,
+            None,
+            face_count,
+            size,
+            f"照片检测到 {face_count} 张人脸，请上传只包含本人人脸的照片",
+        )
+    return FaceFeatureResult(True, _extract_feature(recognizer, image, face), face_count, size, "")
+
+
+def match_feature(recognizer: Any, feature1: np.ndarray, feature2: np.ndarray) -> float:
+    """计算两个 SFace 特征的余弦相似度。"""
+    try:
+        return float(recognizer.match(feature1, feature2, _COSINE))
+    except cv2.error as exc:
+        raise FaceMatchError(f"特征比对失败：{exc}") from exc
+
+
+def encode_feature(feature: np.ndarray) -> str:
+    """将 SFace 特征编码为 float32 base64。"""
+    return base64.b64encode(np.asarray(feature, dtype=np.float32).tobytes()).decode("ascii")
+
+
+def decode_feature(data: str) -> np.ndarray:
+    """解码 float32 SFace 特征。"""
+    raw = base64.b64decode(data)
+    feature = np.frombuffer(raw, dtype=np.float32)
+    if feature.size == 0 or feature.size % 128 != 0:
+        raise FaceMatchError(f"人脸特征长度无效：{feature.size}")
+    return feature.reshape(1, -1)
+
+
+
+def _decode_data_url_to_temp(data: str, name: str) -> Path:
+    if "," in data:
+        data = data.split(",", 1)[1]
+    import tempfile
+    tmp = tempfile.NamedTemporaryFile(suffix=".jpg", prefix=f"fm_{name}_", delete=False)
+    tmp.write(base64.b64decode(data))
+    tmp.close()
+    return Path(tmp.name)
+
+
+def match_photo_to_feature(
+    path: Path | str,
+    template: str,
+    *,
+    threshold: float = DEFAULT_THRESHOLD,
+    model_dir: Path | str = MODEL_DIR,
+    allow_download: bool = True,
+    det_threshold: float = DEFAULT_DET_THRESHOLD,
+) -> MatchResult:
+    """用报名时保存的 SFace 特征或旧版照片模板核验一张照片。"""
+    detector, recognizer = _load_models(model_dir, allow_download, det_threshold)
+    image = read_image(path)
+    face, face_count = detect_largest_face(detector, image)
+    size = (int(image.shape[1]), int(image.shape[0]))
+    if face is None:
+        return MatchResult(False, None, threshold, "照片未检测到人脸", face_count, 1, size, None, "")
+    feature1 = _extract_feature(recognizer, image, face)
+    if template.startswith("data:image/") or (";base64," in template and "/extract" not in template):
+        detector2, recognizer2 = _load_models(model_dir, allow_download, det_threshold)
+        template_path = _decode_data_url_to_temp(template, "template")
+        template_image = read_image(template_path)
+        template_face, template_face_count = detect_largest_face(detector2, template_image)
+        if template_face is None:
+            return MatchResult(False, None, threshold, "模板未检测到人脸", face_count, template_face_count, size, None, "")
+        feature2 = _extract_feature(recognizer2, template_image, template_face)
+    else:
+        feature2 = decode_feature(template)
+    similarity = match_feature(recognizer, feature1, feature2)
+    return MatchResult(
+        similarity >= threshold,
+        similarity,
+        threshold,
+        "" if similarity >= threshold else "相似度低于阈值",
+        face_count,
+        1,
+        size,
+        None,
+        f"已选择面积最大的人脸（照片检测到 {face_count} 张人脸）" if face_count > 1 else "",
     )

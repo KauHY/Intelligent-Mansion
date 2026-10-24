@@ -5,7 +5,13 @@ from .matcher import (
     MODEL_DIR,
     FaceMatchError,
     MatchResult,
+    _load_models,
     ensure_models,
+    decode_feature,
+    encode_feature,
+    extract_face_feature,
+    match_feature,
+    match_photo_to_feature,
     match_faces,
 )
 
@@ -15,6 +21,12 @@ __all__ = [
     "MODEL_DIR",
     "FaceMatchError",
     "MatchResult",
+    "_load_models",
     "ensure_models",
+    "decode_feature",
+    "encode_feature",
+    "extract_face_feature",
+    "match_feature",
+    "match_photo_to_feature",
     "match_faces",
 ]

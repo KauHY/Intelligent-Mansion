@@ -1,0 +1,59 @@
+{
+	"Print to console": {
+		"prefix": "mapi",
+		"body": [
+			"import URLS from '~models/urlConstant/equipment-management';",
+			"import request from '~utils/axios';",
+			"import { EquipmentSearchParams, EquipmentInfo} from './type';",
+
+			"export default class $1 {",
+			  "async equipmentListPage<T>(searchData:EquipmentSearchParams) {",
+				"const { data } = await request({",
+				  "url: URLS.equipmentListPage,",
+				  "method: 'POST',",
+				  "data: searchData,",
+				"});",
+				"const { list, total } = data;",
+			
+				"return {",
+				  "list: <Array<EquipmentInfo>>list,",
+				  "total: <number>total,",
+				"};",
+			  "}",
+			
+			  "async equipmentDel(id:string) {",
+				"await request({",
+				 " url: `${URLS.equipmentDel}${id}`,",
+				  "method: 'DELETE',",
+				"});",
+			  "}",
+			
+			  "async equipmentAdd(data:EquipmentInfo) {",
+				"await request({",
+				  "url: URLS.equipmentAdd,",
+				 " data,",
+				"});",
+			  "}",
+			
+			  "async equipmentModify(data:EquipmentInfo) {",
+				"await request({",
+				 " url: URLS.equipmentModify,",
+				 " data,",
+				  // method: 'put',
+				"});",
+			  "}",
+			
+			  "async equipmentFindById(id:string) {",
+				"const { data } = await request({",
+				  "url: `${URLS.equipmentFindById}${id}`,",
+				 " method: 'get',",
+				"});",
+				"return data as EquipmentInfo;",
+			  "}",
+			"}",
+			
+			"export * from './type';",
+	  ],
+		"description": "models api 方法代码模板"
+	  }
+}

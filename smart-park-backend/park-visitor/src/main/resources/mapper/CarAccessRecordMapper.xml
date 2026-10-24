@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.visitor.mapper.CarAccessRecordMapper">
+
+    <select id="selectAccessGatewayGroup" resultType="com.crlink.smartpark.visitor.model.vo.CarAccessGroupVO">
+        SELECT a.gateway_type,COUNT(a.id) access_count FROM vis_car_access_record a
+        WHERE a.parking_lot_id=#{parkingLotId,jdbcType=VARCHAR} AND a.access_result=1 AND a.gateway_type IN (0,1)
+        GROUP BY a.gateway_type
+    </select>
+
+    <select id="getLatestEnterRecord" resultType="com.crlink.smartpark.visitor.entity.CarAccessRecordRel">
+        SELECT a.* FROM vis_car_access_record_rel a
+        WHERE a.car_num=#{carNum,jdbcType=VARCHAR} AND a.parking_lot_id=#{parkingLotId,jdbcType=VARCHAR}
+        AND a.exit_car_lane_id IS NULL ORDER BY a.create_time DESC LIMIT 1
+    </select>
+
+</mapper>

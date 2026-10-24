@@ -1,0 +1,6 @@
+POST   http://localhost:9000/smartPark/park-inspection/inspection/inspection-point/listPointPage HTTP/1.1
+Accept: application/json, text/plain, */*
+Content-Type: application/json;charset=UTF-8
+Authorization: Bearer_P eyJhbGciOiJIUzUxMiJ9.eyJoZWFkX29yZ19pZCI6IjE0Mzc2NzkxNTUxMTQzOTM2MDEiLCJ0b2tlbklkIjoiNjA2ZjQ3ZDBlNTY4NGExNzlmNGU4NmFlY2EyN2NiZGUiLCJ1c2VyLWlkIjoiMTQzNzY3OTE1NTI2MTE5NDI0MiIsInVzZXJuYW1lIjoi6YOt6LaFIiwidHMiOjE2MzkzNzY4MDF9.7_fgjmUy38khYXry5rL6UrRsoYUFThD2E43P-vFeP9-EGThG6dOyj7_wPIA_UvEyiOJ1kX1TEAae6UttpIxZUQ
+
+{"pointName":"","type":"","orgId":"1437679155114393601","pageNum":1,"pageSize":10}

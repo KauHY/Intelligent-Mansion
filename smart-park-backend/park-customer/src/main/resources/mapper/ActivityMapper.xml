@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.ActivityMapper">
+
+
+    <select id="getActivityList" resultType="com.crlink.smartpark.customer.entity.Activity">
+        select
+        ac.id,
+        ac.name,
+        activity_time_start,
+        activity_time_end,
+        ac.effect_time,
+        ac.status,
+        case
+        when ac.activity_time_start &gt; #{now} then 2
+        when ac.activity_time_start &lt;= #{now} and ac.activity_time_end &gt;= #{now} then 3
+        when ac.activity_time_end &lt; #{now} then 1
+        end sort
+        from cus_activity ac
+        left join cus_business_park_relation r on ac.id = r.business_id
+        <where>
+            ac.deleted = 0
+            and ac.effect_time &lt;= #{now}
+            and r.business_type = 3 and r.deleted = 0
+            and r.park_org_id =#{parkOrgId}
+        </where>
+        group by ac.id
+        order by sort desc
+        limit 5
+    </select>
+
+</mapper>

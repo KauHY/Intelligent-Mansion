@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.device.mapper.MeterReadingRecordMapper1">
+
+    <select id="listMeterReadingRecordPage" resultType="com.crlink.smartpark.device.dto.MeterReadingRecordDTO">
+        select
+        m.`park_org_id`,
+        m.`meter_no`,
+        m.`category`,
+        m.`effect_property`,
+        m.`effect_type`,
+        m.`meter_type`,
+        m.`name`,
+        m.`serial_number`,
+        mr.`id` id,
+        mr.`meter_id`,
+        mr.`meter_reading`,
+        mr.reading_time,
+        mr.`corrected_reading`,
+        mr.`remark`
+        from dev_meter m
+        inner join (SELECT id,meter_id,meter_reading,corrected_reading,year,month,day,reading_time,remark,deleted FROM
+        dev_meter_reading_record a WHERE a.reading_time=(SELECT max(b.reading_time) FROM dev_meter_reading_record b
+        WHERE a.meter_id=b.meter_id and a.year=b.year and a.day=b.day and a.`month`=b.`month` )) as mr on
+        m.id=mr.meter_id
+        <where>
+            m.deleted=0 and mr.deleted=0
+            <if test="q.parkOrgId!=null and q.parkOrgId !=''">
+                and m.park_org_id=#{q.parkOrgId}
+            </if>
+            <if test="q.category!=null ">
+                and m.category=#{q.category}
+            </if>
+            <if test="q.name!=null and q.name !=''">
+                and m.name like concat('%',#{q.name},'%')
+            </if>
+            <if test="q.serialNumber!=null and q.serialNumber !=''">
+                and m.serial_umber=#{q.serialNumber}
+            </if>
+            <if test="q.meterType!=null ">
+                and m.meter_type=#{q.meterType}
+            </if>
+            <if test="q.readingTimeStart!=null and q.readingTimeEnd!=null ">
+                and m.reading_time &gt;= #{q.readingTimeStart} and m.reading_time &lt;= #{q.readingTimeEnd}
+            </if>
+            <if test="q.parkOrgIds!=null and q.parkOrgIds.size()>0">
+                and m.park_org_id in
+                <foreach collection="q.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            order by mr.reading_time desc
+        </where>
+    </select>
+    <!--    第一条sql-->
+    <!--    SELECT * FROM dev_meter_reading_record a WHERE a.reading_time=(SELECT max(b.reading_time) FROM dev_meter_reading_record b WHERE a.year=b.year and a.day=b.day and a.`month`=b.`month` )-->
+    <!--    第二条sql-->
+    <!--    SELECT * from dev_meter m  INNER JOIN-->
+    <!--    (SELECT * FROM (SELECT meter_id,year,month,day,reading_time FROM `dev_meter_reading_record` ORDER BY  reading_time desc LIMIT 1000000000) as t GROUP BY t.`year`,t.`month`,t.`day`) as mr on m.id=mr.meter_id ORDER BY mr.reading_time;-->
+
+
+    <!--  mr.`meter_reading` thisReading,-->
+    <resultMap id="meterConsumptionRecordDTO" type="com.crlink.smartpark.device.dto.MeterConsumptionRecordDTO"
+               autoMapping="true">
+        <result column="floors" property="floors"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"></result>
+        <result column="house_ids" property="houseIds"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"></result>
+    </resultMap>
+    <select id="listMeterConsumptionRecordPage"
+            resultMap="meterConsumptionRecordDTO">
+        select
+        m.`park_org_id`,
+        m.`building_id`,
+        m.`floors`,
+        m.`house_ids`,
+        m.`meter_no`,
+        m.`category`,
+        m.`effect_property`,
+        m.`effect_type`,
+        m.`meter_type`,
+        m.`name`,
+        m.`serial_number`,
+        m.floors,
+        mr.`id` id,
+        mr.`meter_id`,
+        mr.`year` thisYear,
+        mr.`month` thisMonth,
+        mr.meter_reading,
+        mr.reading_time thisPeriodTime,
+        mr.`corrected_reading` thisReading
+        from dev_meter m inner join (SELECT
+        id,meter_id,meter_reading,corrected_reading,year,month,day,reading_time,remark,deleted FROM
+        dev_meter_reading_record a WHERE a.reading_time=(SELECT max(b.reading_time) FROM dev_meter_reading_record b
+        WHERE a.meter_id=b.meter_id and a.year=b.year and a.`month`=b.`month` )) as mr on m.id=mr.meter_id
+        <where>
+            m.deleted=0 and mr.deleted=0
+            <if test="q.parkOrgId!=null and q.parkOrgId !=''">
+                and m.park_org_id=#{q.parkOrgId}
+            </if>
+            <if test="q.category!=null ">
+                and m.category=#{q.category}
+            </if>
+            <if test="q.buildingId!=null and q.buildingId !=''">
+                and m.building_id=#{q.buildingId}
+            </if>
+            <if test="q.floor!=null">
+                and json_contains(m.floors,#{q.floor})
+            </if>
+            <if test="q.houseId!=null and q.houseId !=''">
+                and json_contains(m.house_ids,concat('"',#{q.houseId},'"'))
+            </if>
+            <if test="q.name!=null and q.name !=''">
+                and m.name like concat('%',#{q.name},'%')
+            </if>
+            <if test="q.serialNumber!=null and q.serialNumber !=''">
+                and m.serial_umber=#{q.serialNumber}
+            </if>
+            <!--            <if test="q.meterType!=null ">-->
+            <!--                and m.meter_type=#{q.meterType}-->
+            <!--            </if>-->
+            <!--            <if test="q.readingTimeStart!=null and q.readingTimeEnd!=null ">-->
+            <!--                and m.reading_time &gt;= #{q.readingTimeStart} and m.reading_time &lt;= #{q.readingTimeEnd}-->
+            <!--            </if>-->
+            <if test="q.year!=null ">
+                and mr.year=#{q.year}
+            </if>
+            <if test="q.month!=null ">
+                and mr.month=#{q.month}
+            </if>
+            <if test="q.parkOrgIds!=null and q.parkOrgIds.size()>0">
+                and m.park_org_id in
+                <foreach collection="q.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            <if test="q.meterIds!=null and q.meterIds.size()>0">
+                and mr.meter_id in
+                <foreach collection="q.meterIds" open="(" separator="," close=")" item="meterId">
+                    #{meterId}
+                </foreach>
+            </if>
+            order by mr.reading_time desc
+        </where>
+    </select>
+    <select id="queryMaxRecord" resultType="com.crlink.smartpark.device.dto.MeterReadingDTO">
+        SELECT *
+        FROM dev_meter_reading_record a
+        WHERE a.reading_time = (SELECT max(reading_time)
+        FROM dev_meter_reading_record b
+        WHERE a.meter_id = b.meter_id
+        <if test="start !=null">
+            and b.reading_time &gt; #{start}
+        </if>
+        <if test="end !=null">
+            and b.reading_time &lt; #{end}
+        </if>
+        <if test="meterIds!=null and meterIds.size()>0">
+            and b.meter_id in
+            <foreach collection="meterIds" open="(" separator="," close=")" item="meterId">
+                #{meterId}
+            </foreach>
+        </if>
+        GROUP BY b.meter_id
+        )
+    </select>
+
+
+    <select id="queryMinRecord" resultType="com.crlink.smartpark.device.dto.MeterReadingDTO">
+        SELECT *
+        FROM dev_meter_reading_record a
+        WHERE a.reading_time = (SELECT min(reading_time)
+        FROM dev_meter_reading_record b
+        WHERE a.meter_id = b.meter_id
+        <if test="start !=null">
+            and b.reading_time &gt; #{start}
+        </if>
+        <if test="end !=null">
+            and b.reading_time &lt; #{end}
+        </if>
+        <if test="meterIds!=null and meterIds.size()>0">
+            and b.meter_id in
+            <foreach collection="meterIds" open="(" separator="," close=")" item="meterId">
+                #{meterId}
+            </foreach>
+        </if>
+        GROUP BY b.meter_id
+        )
+    </select>
+
+
+</mapper>

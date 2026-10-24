@@ -1,0 +1,116 @@
+<h2>thingsboard-sensor-hybrid-demo 紧凑布局方案</h2>
+<p class="subtitle">目标：删除冗余卡片后，把设备名称、连接状态、操作按钮、核心指标和两张图尽量压进首屏。</p>
+
+<div class="cards">
+  <div class="card" data-choice="A" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">A. 紧凑顶部条 + 双列主体（推荐）</div>
+        <div class="mockup-body">
+          <div style="padding:12px;border:1px solid #d8e6f5;border-radius:12px;background:#f7fbff;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;">
+              <div>
+                <div class="label">DEVICE</div>
+                <div style="font-size:18px;font-weight:700;">设备名称 + 最后更新时间</div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                <div class="mock-button">阶段</div>
+                <div class="mock-button">REST</div>
+                <div class="mock-button">实时</div>
+                <div class="mock-button">重新连接</div>
+                <div class="mock-button">刷新历史</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:0.9fr 1.1fr;gap:10px;">
+            <div>
+              <div style="height:78px;border-radius:12px;background:#eef7ff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">温度主卡</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+                <div style="height:70px;border-radius:12px;background:#f3fbf8;border:1px solid #d8e6f5;padding:10px;">湿度</div>
+                <div style="height:70px;border-radius:12px;background:#f5f4ff;border:1px solid #d8e6f5;padding:10px;">气压</div>
+              </div>
+              <div style="height:76px;border-radius:12px;background:#f8fbfe;border:1px solid #d8e6f5;padding:10px;">辅助指标</div>
+            </div>
+            <div>
+              <div style="height:124px;border-radius:12px;background:#fff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">气候趋势图</div>
+              <div style="height:124px;border-radius:12px;background:#fff;border:1px solid #d8e6f5;padding:10px;">气压序列图</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 保留双列信息架构</h3>
+      <p>删除底部详情区，顶部改成一条紧凑状态栏。改动最小，仍然适合桌面监控看板。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="B" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">B. 全部单列堆叠</div>
+        <div class="mockup-body">
+          <div style="height:64px;border-radius:12px;background:#f7fbff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">设备名 + 状态 + 按钮</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div style="height:68px;border-radius:12px;background:#eef7ff;border:1px solid #d8e6f5;padding:10px;">温度</div>
+            <div style="height:68px;border-radius:12px;background:#f3fbf8;border:1px solid #d8e6f5;padding:10px;">湿度</div>
+            <div style="height:68px;border-radius:12px;background:#f5f4ff;border:1px solid #d8e6f5;padding:10px;">气压</div>
+          </div>
+          <div style="height:72px;border-radius:12px;background:#f8fbfe;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">辅助指标</div>
+          <div style="height:110px;border-radius:12px;background:#fff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">气候趋势图</div>
+          <div style="height:110px;border-radius:12px;background:#fff;border:1px solid #d8e6f5;padding:10px;">气压序列图</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 单列阅读流</h3>
+      <p>最稳妥，移动端最好，但桌面端图表会偏矮，信息扫描效率稍弱。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="C" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">C. 指标优先 + 图表切换</div>
+        <div class="mockup-body">
+          <div style="height:64px;border-radius:12px;background:#f7fbff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">设备名 + 状态 + 按钮</div>
+          <div style="display:grid;grid-template-columns:1.1fr 0.9fr;gap:8px;">
+            <div>
+              <div style="height:82px;border-radius:12px;background:#eef7ff;border:1px solid #d8e6f5;margin-bottom:8px;padding:10px;">主指标</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="height:72px;border-radius:12px;background:#f3fbf8;border:1px solid #d8e6f5;padding:10px;">湿度</div>
+                <div style="height:72px;border-radius:12px;background:#f5f4ff;border:1px solid #d8e6f5;padding:10px;">气压</div>
+              </div>
+            </div>
+            <div style="height:162px;border-radius:12px;background:#fff;border:1px solid #d8e6f5;padding:10px;">一个大图 + 切换另一个图</div>
+          </div>
+          <div style="height:70px;border-radius:12px;background:#f8fbfe;border:1px solid #d8e6f5;margin-top:8px;padding:10px;">辅助指标</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C. 首屏最省空间</h3>
+      <p>压缩最强，但需要给两张图加切换或分页，交互变复杂，不符合你“直接看到关键内容”的方向。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>我建议 A 的原因</h4>
+      <ul>
+        <li>删除项完全对齐你的要求</li>
+        <li>按钮、状态、设备名都能放进顶部短条</li>
+        <li>两张图都保留可见，不需要加额外交互</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>A 的代价</h4>
+      <ul>
+        <li>需要缩短顶部说明文案，基本不再保留 hero 式叙事</li>
+        <li>卡片 padding 和图表高度都要一起压缩</li>
+      </ul>
+    </div>
+  </div>
+</div>

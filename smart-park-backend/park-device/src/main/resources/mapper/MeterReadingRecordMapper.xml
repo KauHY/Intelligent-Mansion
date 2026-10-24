@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.device.mapper.MeterReadingRecordMapper">
+    <!--    <select id="listMeterReadingRecordPage" resultType="com.crlink.smartpark.device.dto.MeterReadingRecordDTO">-->
+    <!--        select-->
+    <!--        m.`park_org_id`,-->
+    <!--        m.`device_type`,-->
+    <!--        JSON_EXTRACT(m.extension,'$.effectProperty') as effectProperty,-->
+    <!--        JSON_EXTRACT(m.extension,'$.effectType') as effectType,-->
+    <!--        JSON_EXTRACT(m.extension,'$.meterType') as meterType,-->
+    <!--        m.`device_name`,-->
+    <!--        mr.`id` id,-->
+    <!--        mr.`meter_id`,-->
+    <!--        mr.`meter_reading`,-->
+    <!--        mr.reading_time,-->
+    <!--        mr.`corrected_reading`,-->
+    <!--        mr.`remark`,-->
+    <!--        mr.`import_remark`-->
+    <!--        from dev_device_info m-->
+    <!--        inner join dev_meter_reading_record as mr on m.id=mr.meter_id-->
+    <!--        <where>-->
+    <!--            m.deleted=0 and mr.deleted=0-->
+    <!--            <if test="q.parkOrgId!=null and q.parkOrgId !=''">-->
+    <!--                and m.park_org_id=#{q.parkOrgId}-->
+    <!--            </if>-->
+    <!--            <if test="q.deviceType!=null ">-->
+    <!--                and m.device_type=#{q.deviceType}-->
+    <!--            </if>-->
+    <!--            <if test="q.deviceName!=null and q.deviceName !=''">-->
+    <!--                and m.device_name like concat('%',#{q.deviceName},'%')-->
+    <!--            </if>-->
+    <!--            <if test="q.effectProperty!=null ">-->
+    <!--                and JSON_CONTAINS(m.extension,CAST(#{q.effectProperty} AS JSON), '$.effectProperty')-->
+    <!--            </if>-->
+    <!--            <if test="q.meterType!=null ">-->
+    <!--                and JSON_CONTAINS(m.extension,CAST(#{q.meterType} AS JSON), '$.meterType')-->
+    <!--            </if>-->
+    <!--            <if test="q.readingTimeStart!=null and q.readingTimeEnd!=null ">-->
+    <!--                and mr.reading_time &gt;= #{q.readingTimeStart} and mr.reading_time &lt;= #{q.readingTimeEnd}-->
+    <!--            </if>-->
+    <!--            <if test="q.parkOrgIds!=null and q.parkOrgIds.size()>0">-->
+    <!--                and m.park_org_id in-->
+    <!--                <foreach collection="q.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">-->
+    <!--                    #{parkOrgId}-->
+    <!--                </foreach>-->
+    <!--            </if>-->
+    <!--            order by mr.reading_time desc-->
+    <!--        </where>-->
+    <!--    </select>-->
+    <!--    m.`serial_number`,-->
+    <!--    <if test="q.serialNumber!=null and q.serialNumber !=''">-->
+    <!--        and m.serial_number=#{q.serialNumber}-->
+    <!--    </if>-->
+
+
+    <select id="queryMaxRecord" resultType="com.crlink.smartpark.device.dto.MeterReadingDTO">
+        SELECT a.meter_id,a.meter_reading,a.reading_time,a.corrected_reading
+        FROM dev_meter_reading_everyday_record a
+        WHERE a.reading_time = (SELECT max(reading_time)
+        FROM dev_meter_reading_everyday_record b
+        WHERE a.meter_id = b.meter_id
+        <if test="start !=null">
+            and b.reading_time &gt; #{start}
+        </if>
+        <if test="end !=null">
+            and b.reading_time &lt; #{end}
+        </if>
+        <if test="meterIds!=null and meterIds.size()>0">
+            and b.meter_id in
+            <foreach collection="meterIds" open="(" separator="," close=")" item="meterId">
+                #{meterId}
+            </foreach>
+        </if>
+        GROUP BY b.meter_id
+        )
+    </select>
+
+    <select id="queryMinRecord" resultType="com.crlink.smartpark.device.dto.MeterReadingDTO">
+        SELECT a.meter_id,a.meter_reading,a.reading_time,a.corrected_reading
+        FROM dev_meter_reading_everyday_record a
+        WHERE a.reading_time = (SELECT min(reading_time)
+        FROM dev_meter_reading_everyday_record b
+        WHERE a.meter_id = b.meter_id
+        <if test="start !=null">
+            and b.reading_time &gt; #{start}
+        </if>
+        <if test="end !=null">
+            and b.reading_time &lt; #{end}
+        </if>
+        <if test="meterIds!=null and meterIds.size()>0">
+            and b.meter_id in
+            <foreach collection="meterIds" open="(" separator="," close=")" item="meterId">
+                #{meterId}
+            </foreach>
+        </if>
+        GROUP BY b.meter_id
+        )
+    </select>
+</mapper>

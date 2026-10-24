@@ -1,0 +1,12 @@
+server:
+  port: 30010
+  servlet:
+    context-path: /smartPark/park-fee
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/park-fee'
+spring:
+  application:
+    name: park-fee
+  profiles:
+    active: dev

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.device.mapper.MeterWarningRecordMapper">
+    <select id="countMeterWarning" resultType="int">
+        select count(*)
+        from dev_device_info m
+        inner join dev_meter_warning_record mw on m.device_id = mw.device_id
+        <where>
+            and m.deleted=0
+            and m.park_org_id=#{parkOrgId}
+            <if test="startTime !=null">
+                and mw.warning_time &gt;= #{startTime}
+            </if>
+            <if test="endTime !=null">
+                and mw.warning_time &lt;= #{endTime}
+            </if>
+            <if test="status != null">
+                and mw.status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="listMeterWarningRecordPage" resultType="com.crlink.smartpark.device.dto.MeterWarningRecordDTO">
+        select
+        m.`park_org_id`,
+        m.`device_type`,
+        m.`device_name`,
+        mw.id,
+        mw.device_id,
+        mw.warning_code,
+        mw.warning_level,
+        mw.warning_time
+        from dev_device_info m
+        inner join dev_meter_warning_record mw on m.device_id=mw.device_id
+        <where>
+            and m.deleted=0
+            <if test="q.parkOrgId!=null and q.parkOrgId !=''">
+                and m.park_org_id=#{q.parkOrgId}
+            </if>
+            <if test="q.deviceName!=null and q.deviceName !=''">
+                and m.device_name like concat('%',#{q.deviceName},'%')
+            </if>
+            <if test="q.warningCode!=null ">
+                and mw.warning_code=#{q.warningCode}
+            </if>
+            <if test="q.warningTimeStart!=null and q.warningTimeEnd!=null ">
+                and mw.warning_time &gt;= #{q.warningTimeStart} and mw.warning_time &lt;= #{q.warningTimeEnd}
+            </if>
+            <if test="q.parkOrgIds!=null and q.parkOrgIds.size()>0">
+                and m.park_org_id in
+                <foreach collection="q.parkOrgIds" open="(" separator="," close=")" item="parkOrgId">
+                    #{parkOrgId}
+                </foreach>
+            </if>
+            <if test="q.deviceType != null">
+                and mw.device_type=#{q.deviceType}
+            </if>
+            order by mw.warning_time desc
+        </where>
+    </select>
+</mapper>

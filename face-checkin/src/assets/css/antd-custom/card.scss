@@ -1,0 +1,112 @@
+/**
+ * 卡片组件主题重构
+ */
+
+.ant-card {
+    @include glass-surface;
+
+    border-radius: $radius-lg;
+    transition: all $transition-base;
+
+    &-hoverable {
+        &:hover {
+            border-color: rgba(var(--theme-primary-rgb), 0.2);
+            box-shadow: 0 24px 42px rgba(8, 24, 40, 0.1);
+            transform: translateY(-2px);
+        }
+    }
+
+    &-head {
+        position: relative;
+        padding: $spacing-lg $spacing-xl;
+        background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.06) 0%, rgba(255, 255, 255, 0.4) 100%);
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+
+        &-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: $neutral-8;
+            letter-spacing: 0.01em;
+        }
+
+        &::after {
+            position: absolute;
+            bottom: 0;
+            left: 24px;
+            width: 88px;
+            height: 2px;
+            content: '';
+
+            @include tech-divider;
+        }
+    }
+
+    &-body {
+        padding: $spacing-xl;
+    }
+
+    &-small {
+        .ant-card-head {
+            padding: $spacing-md $spacing-lg;
+
+            &-title {
+                font-size: 14px;
+            }
+        }
+
+        .ant-card-body {
+            padding: $spacing-lg;
+        }
+    }
+
+    &-bordered {
+        border-color: var(--theme-panel-border);
+    }
+
+    &-actions {
+        background: linear-gradient(180deg, rgba(var(--theme-primary-rgb), 0.04) 0%, rgba(255, 255, 255, 0.7) 100%);
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+
+        > li {
+            color: $neutral-7;
+
+            &:hover {
+                color: var(--ant-primary-color);
+            }
+
+            &:not(:last-child) {
+                border-right: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+            }
+        }
+    }
+
+    &-cover {
+        img {
+            border-radius: $radius-lg $radius-lg 0 0;
+        }
+    }
+
+    &-grid {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+        box-shadow: none;
+        transition: all $transition-fast;
+
+        &:hover {
+            background: rgba(var(--theme-primary-rgb), 0.06);
+            box-shadow: $shadow-sm;
+        }
+    }
+
+    &-meta {
+        &-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: $neutral-8;
+        }
+
+        &-description {
+            font-size: 13px;
+            color: $neutral-6;
+        }
+    }
+}

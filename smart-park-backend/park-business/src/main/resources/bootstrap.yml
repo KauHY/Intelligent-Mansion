@@ -1,0 +1,12 @@
+server:
+  port: 30007
+  servlet:
+    context-path: /smartPark/park-business
+jasypt:
+  encryptor:
+    password: 'crc.com.cn/park-business'
+spring:
+  application:
+    name: park-business
+  profiles:
+    active: dev

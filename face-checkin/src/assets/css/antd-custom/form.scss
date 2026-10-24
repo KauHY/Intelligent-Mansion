@@ -1,0 +1,175 @@
+/**
+ * 表单组件主题重构
+ */
+
+.ant-form {
+    &-item {
+        margin-bottom: 20px;
+
+        &-label {
+            > label {
+                height: 32px;
+                font-size: 13px;
+                font-weight: 600;
+                color: $neutral-8;
+                letter-spacing: 0.01em;
+
+                &.ant-form-item-required {
+                    &::before {
+                        margin-right: 4px;
+                        font-size: 14px;
+                        color: #ff4d4f;
+                    }
+                }
+
+                .ant-form-item-optional {
+                    font-size: 12px;
+                    color: $neutral-6;
+                }
+
+                .ant-form-item-tooltip {
+                    margin-left: $spacing-xs;
+                    color: $neutral-6;
+
+                    &:hover {
+                        color: var(--ant-primary-color);
+                    }
+                }
+            }
+        }
+
+        &-control {
+            &-input {
+                min-height: 32px;
+            }
+        }
+
+        &-extra {
+            margin-top: $spacing-xs;
+            font-size: 12px;
+            line-height: 1.5;
+            color: $neutral-6;
+        }
+
+        &-explain-error {
+            margin-top: $spacing-xs;
+            font-size: 12px;
+            color: #ff4d4f;
+        }
+
+        &-has-success {
+            .ant-input,
+            .ant-input-affix-wrapper,
+            .ant-input-number,
+            .ant-picker,
+            .ant-select-selector {
+                border-color: #52c41a;
+            }
+        }
+
+        &-has-warning {
+            .ant-input,
+            .ant-input-affix-wrapper,
+            .ant-input-number,
+            .ant-picker,
+            .ant-select-selector {
+                border-color: #faad14;
+            }
+        }
+
+        &-has-error {
+            .ant-input,
+            .ant-input-affix-wrapper,
+            .ant-input-number,
+            .ant-picker,
+            .ant-select-selector {
+                border-color: #ff4d4f;
+
+                &:focus {
+                    box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.12);
+                }
+            }
+        }
+    }
+
+    &-item-compact {
+        .ant-form-item {
+            margin-bottom: $spacing-md;
+        }
+    }
+
+    &-inline {
+        .ant-form-item {
+            margin-right: $spacing-lg;
+            margin-bottom: $spacing-md;
+        }
+    }
+}
+
+.ant-checkbox {
+    &-wrapper {
+        font-size: 14px;
+        color: $neutral-7;
+
+        &:hover {
+            .ant-checkbox-inner {
+                border-color: var(--ant-primary-color);
+            }
+        }
+    }
+
+    &-inner {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(123, 149, 177, 0.28);
+        border-radius: 6px;
+        transition: all $transition-fast;
+    }
+
+    &-checked {
+        .ant-checkbox-inner {
+            background: linear-gradient(180deg, var(--theme-primary-hover) 0%, var(--ant-primary-color) 100%);
+            border-color: var(--ant-primary-color);
+        }
+    }
+}
+
+.ant-radio {
+    &-wrapper {
+        font-size: 14px;
+        color: $neutral-7;
+
+        &:hover {
+            .ant-radio-inner {
+                border-color: var(--ant-primary-color);
+            }
+        }
+    }
+
+    &-inner {
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(123, 149, 177, 0.3);
+        transition: all $transition-fast;
+    }
+
+    &-checked {
+        .ant-radio-inner {
+            border-color: var(--ant-primary-color);
+
+            &::after {
+                background-color: var(--ant-primary-color);
+            }
+        }
+    }
+}
+
+.ant-switch {
+    background: rgba(123, 149, 177, 0.48);
+
+    &-checked {
+        background: linear-gradient(90deg, var(--theme-primary-hover) 0%, var(--ant-primary-color) 100%);
+    }
+
+    &:focus {
+        box-shadow: 0 0 0 3px rgba(var(--theme-primary-rgb), 0.12);
+    }
+}

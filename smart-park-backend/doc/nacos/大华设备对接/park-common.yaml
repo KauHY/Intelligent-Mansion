@@ -1,0 +1,14 @@
+dahua:
+  icc:
+    host: 10.200.3.230
+    username: system
+    password: mahaoqiang123
+    pwd-client-id: smart-park-icc
+    pwd-client-secret: 94a93702-30b3-436f-9f1d-ede4edbdec11
+    event-accept-prefix-url: https://park.crc.com.cn/smartPark/park-device
+    subsystem-name: smart-park-icc-uat
+    subsystem-magic: park.crc.com.cn_443
+
+ribbon:
+  ReadTimeout: 6000
+  ConnectTimeout: 6000

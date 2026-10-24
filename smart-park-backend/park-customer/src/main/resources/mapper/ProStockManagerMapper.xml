@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.crlink.smartpark.customer.mapper.ProStockManagerMapper">
+
+    <select id="getStockByGoodsIds" resultType="com.crlink.smartpark.customer.model.vo.StockManagerSelectVo">
+        select s.id,s.goods_id,g.goods_name,s.stock_num
+        from cus_pro_stock_manager s
+        LEFT JOIN cus_pro_goods_manager g ON s.goods_id = g.id
+        <where>
+            s.deleted = 0
+            and s.goods_id in
+            <foreach item="item" index="index" collection="goodsSet" open="(" close=")" separator=",">
+                #{item}
+            </foreach>
+        </where>
+    </select>
+    <select id="listPage" resultType="com.crlink.smartpark.customer.dto.ProStockManagerDTO">
+        SELECT
+        cpsm.id,
+        cpsm.park_org_id,
+        cpsm.goods_id,
+        cpsm.stock_num,
+        cpsm.average_price,
+        cpsm.warehouse_id,
+        cpsm.total_stock_num,
+        cpsm.total_price,
+        cpsm.remark,
+        goods_type,
+        goods_no,
+        unit,
+        unit_price,
+        goods_name,
+        cpsm.update_time
+        FROM
+        cus_pro_stock_manager cpsm
+        LEFT JOIN cus_pro_goods_manager cpgm ON cpsm.goods_id = cpgm.id
+        WHERE
+        cpsm.deleted = 0
+        AND cpgm.deleted = 0
+        <if test="query.parkOrgId!=null and query.parkOrgId!=''">
+            and cpsm.park_org_id = #{query.parkOrgId}
+        </if>
+        and cpsm.park_org_id in
+        <foreach item="item" index="index" collection="parkOrgIds" open="(" close=")" separator=",">
+            #{item}
+        </foreach>
+        <if test="query.goodsName!=null and query.goodsName!=''">
+            and goods_name like concat('%',#{query.goodsName},'%')
+        </if>
+
+        <if test="query.isMinStock!=null and query.isMinStock==true">
+            AND cpsm.stock_num &lt;= min_stock
+        </if>
+        ORDER BY
+        cpsm.create_time DESC
+    </select>
+</mapper>

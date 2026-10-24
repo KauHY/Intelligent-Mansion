@@ -1,0 +1,11 @@
+
+@use 'sass:math';
+
+@mixin bg($url, $size) {
+    background: url($url) no-repeat;
+    background-size: $size;
+}
+
+@function h($w) {
+    @return math.div($w, math.div(1080,100))*1vh;
+}

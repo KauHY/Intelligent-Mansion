@@ -1,0 +1,92 @@
+/**
+ * Ant Design Vue 全局基础视觉层
+ * 负责统一智慧楼宇主题下的基础面板、提示和信息组件风格。
+ */
+
+.ant-layout {
+    background: transparent;
+}
+
+.ant-breadcrumb {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    color: $neutral-6;
+
+    a,
+    .ant-breadcrumb-link {
+        color: $neutral-7;
+        transition: color $transition-fast;
+    }
+
+    a:hover,
+    .ant-breadcrumb-link:hover {
+        color: var(--ant-primary-color);
+    }
+
+    .ant-breadcrumb-separator {
+        margin: 0 10px;
+        color: rgba(var(--theme-primary-rgb), 0.42);
+    }
+
+    > span:last-child {
+        .ant-breadcrumb-link,
+        a {
+            font-weight: 600;
+            color: $neutral-8;
+        }
+    }
+}
+
+.ant-tag {
+    padding: 4px 10px;
+    color: var(--theme-primary-deep);
+    background: rgba(var(--theme-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+    border-radius: 999px;
+}
+
+.ant-divider {
+    border-color: rgba(123, 149, 177, 0.16);
+}
+
+.ant-empty {
+    .ant-empty-image {
+        opacity: 0.76;
+    }
+
+    .ant-empty-description {
+        color: $neutral-6;
+    }
+}
+
+.ant-message {
+    .ant-message-notice-content {
+        @include glass-surface;
+
+        border-radius: $radius-md;
+    }
+}
+
+.ant-notification-notice {
+    @include glass-surface;
+
+    border-radius: $radius-lg;
+}
+
+.ant-popover-inner,
+.ant-tooltip .ant-tooltip-inner {
+    @include glass-surface;
+
+    color: $neutral-8;
+    border-radius: $radius-md;
+}
+
+.ant-popover-arrow-content,
+.ant-tooltip-arrow-content {
+    background: $neutral-1;
+}
+
+.ant-spin-dot-item {
+    background-color: var(--ant-primary-color);
+}
