@@ -104,17 +104,7 @@
     .o1 { animation: orbA 26s ease-in-out infinite alternate; }
     .o2 { animation: orbB 32s ease-in-out -10s infinite alternate; }
     @keyframes bob   { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
-    @keyframes clawW { 0%, 44% { transform: translateY(0); } 50%, 94% { transform: translateY(-3.2px); } 100% { transform: translateY(0); } }
-    @keyframes blinkE { 0%, 88% { opacity: 1; } 90%, 96% { opacity: 0; } 98%, 100% { opacity: 1; } }
-    @keyframes tailW { 0%, 40% { transform: translateY(0); } 46%, 90% { transform: translateY(-3.2px); } 96%, 100% { transform: translateY(0); } }
-    @keyframes bub { from { transform: translateY(0); opacity: 0; } 12% { opacity: .8; } to { transform: translateY(-16px); opacity: 0; } }
-    .bobA { animation: bob 4.2s ease-in-out infinite alternate; }
-    .bobB { animation: bob 5s ease-in-out -1.6s infinite alternate; }
-    .clawR { animation: clawW 3.2s steps(1) infinite; }
-    .eyeB  { animation: blinkE 5.2s steps(1) infinite; }
-    .tailT { animation: tailW 3.6s steps(1) infinite; }
-    .bub   { animation: bub 4s ease-out infinite; }
-    .bub2  { animation: bub 4s ease-out 2s infinite; }
+    .bobB { animation: bob 4.4s ease-in-out -1.6s infinite alternate; }
 
     @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
   </style>
@@ -247,63 +237,97 @@
       <text x="1148" y="320" text-anchor="end">0x09</text><text x="1148" y="338" text-anchor="end">0xD6</text>
     </g>
 
-    <!-- 左翼点缀：Clawd 像素螃蟹（扁平宽体，#CD6E58，纯黑像素眼，挥钳 + 眨眼 + 悬浮） -->
-    <g>
-      <rect x="36" y="108" width="82" height="54" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
-      <g class="bobA">
+    <!-- 左翼点缀：Clawd 像素螃蟹 —— 官方 16x8 身体矩阵逐像素重绘（#CD6E58 身体、1x2 黑像素眼、4 腿、含钳最宽行），官方动作：上下蹲起 -->
+    <g class="rC">
+      <rect x="30" y="112" width="96" height="52" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
+      <!-- 腿（蹲起时收起，身体落到底） -->
+      <g class="cLegs" fill="#CD6E58" shape-rendering="crispEdges">
+        <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.46;0.5;0.92;1"
+          calcMode="discrete" dur="1.3s" repeatCount="indefinite"/>
+        <rect x="58" y="148" width="5" height="10"/>
+        <rect x="68" y="148" width="5" height="10"/>
+        <rect x="83" y="148" width="5" height="10"/>
+        <rect x="93" y="148" width="5" height="10"/>
+      </g>
+      <g class="cBody">
+        <animateTransform attributeName="transform" type="translate"
+          values="0 0; 0 0; 0 10; 0 10; 0 0" keyTimes="0; 0.46; 0.5; 0.92; 1"
+          calcMode="discrete" dur="1.3s" repeatCount="indefinite"/>
         <g fill="#CD6E58" shape-rendering="crispEdges">
-          <!-- 身体：扁平宽体三层 -->
-          <rect x="58" y="124" width="44" height="4"/>
-          <rect x="54" y="128" width="52" height="8"/>
-          <rect x="58" y="136" width="44" height="4"/>
-          <!-- 左钳臂（举钳） -->
-          <rect class="clawR" x="46" y="122" width="4" height="8"/>
-          <rect class="clawR" x="42" y="116" width="8" height="6"/>
-          <!-- 右钳臂 -->
-          <rect class="clawR" x="110" y="122" width="4" height="8"/>
-          <rect class="clawR" x="108" y="116" width="8" height="6"/>
-          <!-- 六条腿 -->
-          <rect x="60" y="140" width="4" height="6"/>
-          <rect x="68" y="140" width="4" height="6"/>
-          <rect x="76" y="140" width="4" height="6"/>
-          <rect x="82" y="140" width="4" height="6"/>
-          <rect x="90" y="140" width="4" height="6"/>
-          <rect x="98" y="140" width="4" height="6"/>
+          <!-- 矩阵 row 0-1：头顶（cols 3-12） -->
+          <rect x="53" y="118" width="50" height="5"/>
+          <rect x="53" y="123" width="50" height="5"/>
+          <!-- 矩阵 row 2-3：最宽（cols 1-14，含双钳） -->
+          <rect x="43" y="128" width="70" height="5"/>
+          <rect x="43" y="133" width="70" height="5"/>
+          <!-- 矩阵 row 4-5：腹部（cols 3-12） -->
+          <rect x="53" y="138" width="50" height="5"/>
+          <rect x="53" y="143" width="50" height="5"/>
         </g>
-        <!-- 眼睛：1x1 纯黑像素，眨眼时熄灭（无嘴，情绪全靠眼睛） -->
-        <g fill="#0b0f14" shape-rendering="crispEdges">
-          <rect x="64" y="128" width="4" height="4" class="eyeB"/>
-          <rect x="84" y="128" width="4" height="4" class="eyeB"/>
+        <!-- 眼睛：官方 1x2 竖长黑像素（row 1-2，col 5 / col 10），blink 时熄灭 -->
+        <g fill="#000000" shape-rendering="crispEdges">
+          <animate attributeName="opacity" values="1;1;0;0;1;1" keyTimes="0;0.9;0.91;0.95;0.96;1"
+            calcMode="discrete" dur="4.6s" repeatCount="indefinite"/>
+          <rect x="63" y="123" width="5" height="10"/>
+          <rect x="88" y="123" width="5" height="10"/>
         </g>
       </g>
-      <text x="77" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">CLAWD</text>
+      <text x="78" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">CLAWD</text>
     </g>
 
-    <!-- 右翼点缀：DeepSeek 像素鲸鱼（头朝左游向中心，#4D6BFE，摆尾 + 冒泡） -->
-    <g>
-      <rect x="1080" y="108" width="80" height="54" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
-      <g class="bobB">
-        <g fill="#4D6BFE" shape-rendering="crispEdges">
-          <!-- 身体：弓形五层（左端圆钝为头部，右端收细接尾） -->
-          <rect x="1108" y="126" width="32" height="4"/>
-          <rect x="1100" y="130" width="48" height="4"/>
-          <rect x="1096" y="134" width="52" height="4"/>
-          <rect x="1100" y="138" width="44" height="4"/>
-          <rect x="1108" y="142" width="32" height="4"/>
-          <!-- 尾柄 + 上翘分叉尾鳍（右端，摆动） -->
-          <rect class="tailT" x="1144" y="120" width="4" height="8"/>
-          <rect class="tailT" x="1148" y="112" width="4" height="8"/>
-          <rect class="tailT" x="1152" y="112" width="4" height="4"/>
-          <!-- 胸鳍 -->
-          <rect x="1112" y="146" width="8" height="4"/>
+    <!-- 右翼点缀：DeepSeek 像素鲸鱼 —— 官方 24x24 path 栅格化逐像素重绘（#4D6BFE），官方动作：摆尾 -->
+    <g class="rC">
+      <rect x="1072" y="112" width="68" height="56" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
+      <g transform="translate(1078,114) scale(2.4)">
+        <!-- 尾鳍上叉（官方轮廓顶部，摆尾帧） -->
+        <g class="wTail" fill="#4D6BFE" shape-rendering="crispEdges">
+          <animateTransform attributeName="transform" type="translate"
+            values="0 0; 0 0; 0 1; 0 1; 0 0" keyTimes="0; 0.46; 0.5; 0.92; 1"
+            calcMode="discrete" dur="1.15s" repeatCount="indefinite"/>
+          <rect x="16" y="3" width="2" height="1"/>
+          <rect x="15" y="4" width="3" height="1"/>
+          <rect x="22" y="4" width="1" height="1"/>
+          <rect x="16" y="5" width="3" height="1"/>
+          <rect x="20" y="5" width="4" height="1"/>
         </g>
-        <!-- 眼睛：头部前端，黑像素 -->
-        <rect x="1104" y="134" width="4" height="4" fill="#0b0f14" shape-rendering="crispEdges"/>
-        <!-- 气泡（自头顶前上方升起） -->
-        <circle class="bub"  cx="1088" cy="126" r="1.5" fill="#7aa2ff"/>
-        <circle class="bub2" cx="1084" cy="130" r="1"  fill="#7aa2ff"/>
+        <!-- 身体（官方 path 栅格，行 y=4..20） -->
+        <g fill="#4D6BFE" shape-rendering="crispEdges">
+          <rect x="5"  y="4" width="9"  height="1"/>
+          <rect x="3"  y="5" width="12" height="1"/>
+          <rect x="2"  y="6" width="12" height="1"/>
+          <rect x="16" y="6" width="8"  height="1"/>
+          <rect x="1"  y="7" width="18" height="1"/>
+          <rect x="20" y="7" width="3"  height="1"/>
+          <rect x="1"  y="8" width="18" height="1"/>
+          <rect x="20" y="8" width="2"  height="1"/>
+          <rect x="23" y="8" width="1"  height="1"/>
+          <rect x="0"  y="9" width="16" height="1"/>
+          <rect x="17" y="9" width="4"  height="1"/>
+          <rect x="0"  y="10" width="2" height="1"/>
+          <rect x="3"  y="10" width="2" height="1"/>
+          <rect x="7"  y="10" width="13" height="1"/>
+          <rect x="0"  y="11" width="2" height="1"/>
+          <rect x="4"  y="11" width="16" height="1"/>
+          <rect x="0"  y="12" width="20" height="1"/>
+          <rect x="0"  y="13" width="2" height="1"/>
+          <rect x="5"  y="13" width="15" height="1"/>
+          <rect x="1"  y="14" width="3" height="1"/>
+          <rect x="10" y="14" width="9" height="1"/>
+          <rect x="1"  y="15" width="2" height="1"/>
+          <rect x="8"  y="15" width="11" height="1"/>
+          <rect x="2"  y="16" width="2" height="1"/>
+          <rect x="7"  y="16" width="10" height="1"/>
+          <rect x="2"  y="17" width="4" height="1"/>
+          <rect x="8"  y="17" width="10" height="1"/>
+          <rect x="3"  y="18" width="9" height="1"/>
+          <rect x="14" y="18" width="5" height="1"/>
+          <rect x="5"  y="19" width="9" height="1"/>
+          <rect x="7"  y="20" width="5" height="1"/>
+        </g>
+        <!-- 官方眼睛（负空间点，位于官方 path 眼位 (12.9, 11.7)） -->
+        <rect x="12" y="11" width="1" height="1" fill="#0a1526" shape-rendering="crispEdges"/>
       </g>
-      <text x="1120" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">DEEPSEEK</text>
+      <text x="1106" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">DEEPSEEK</text>
     </g>
   </g>
 </svg>
