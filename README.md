@@ -101,7 +101,57 @@ cd code
 - ✅ 业务幂等：请求、与会人员重复签到、非成功事件去重
 - ✅ 审核控制：只有启用且审核通过的人员参与识别
 - ✅ 管理页面：人员管理、会议管理、详情页、记录与导出
-- ✅ 板端反馈：识别结果 JSON 回传，PC 可按会议启停桥接
+- ✅ 板端反馈：W5500 同连接接收识别结果 JSON，并在 LCD 显示固定中文考勤结果
+
+## 板端考勤结果显示
+
+板端上传 RGB565 图片并收到 `XPA1` 图片保存 ACK 后，**不会立即关闭 TCP
+连接**；它会继续读取 PC 桥接返回的识别结果。该能力仅适用于当前的
+**W5500 有线 TCP** 链路，Wi-Fi（ESP8285 AT）链路不包含此回传消费逻辑。
+
+```text
+K210 图片上传 → PC 保存图片并回 XPA1 ACK
+              → PC 调用 /verify，写入考勤结果
+              → PC 回传 4B JSON 长度（网络序）+ UTF-8 JSON
+              → XiUOS 校验、解析 status/message → LCD 提示
+```
+
+报文最大为 `2048` 字节，读取超时为 `3` 秒。图片 ACK 成功后，即使 JSON
+超时、截断或格式不正确，板端也只降级显示“人像已完成采集”，**绝不重新上传
+同一张图片**，从而避免重复签到。
+
+| `status` | LCD 文案 | 文字颜色 |
+| :---: | --- | --- |
+| `1` | 签到成功 | 绿色 |
+| `2` | 已签到 | 黄色 |
+| `3` | 无权限 | 红色 |
+| `4` | 未识别 | 白色 |
+| `5` | 签到未开始 / 签到已结束 | 白色 |
+| `7` | 暂不可用 | 白色 |
+| 其他或结果报文失败 | 识别失败 / 人像已完成采集 | 白色 |
+
+LCD 使用预生成的固定中文点阵字库
+[`photo_toast_font.h`](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_toast_font.h)，
+因此不需要在编译前手动替换该文件。PC 的 `boardText` 和姓名仍会写入板端
+串口日志；为避免 K210 缺少通用中文字库时显示乱码，LCD 只显示上述固定结果文案。
+
+### 编译 XiUOS 固件
+
+在已配置 `make`、`riscv-none-embed-gcc` 的 XiUOS Linux/VM 构建环境中执行：
+
+```bash
+cd XiUOS/Ubiquitous/XiZi_IIoT
+make BOARD=edu-riscv64
+```
+
+`make BOARD=edu-riscv64 -j2` 与上述构建内容相同，只是最多并行执行两个任务；
+首次编译或排查错误时建议不加 `-j2`，日志更易阅读。
+
+若将源码复制到另一份工作区，或修改固定 LCD 文案，可重新生成点阵头文件：
+
+```powershell
+C:\Users\10421\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe pc_bridge\generate_toast_font.py
+```
 
 ## 识别规则
 
@@ -124,6 +174,8 @@ cd code
 | [`face-checkin/`](face-checkin/) | Vue 管理端 |
 | [`docker/docker-compose.yml`](docker/docker-compose.yml) | 本地编排 |
 | [`XiUOS/`](XiUOS/) | K210/XiUOS 板端代码 |
+| [`XiUOS/.../photo_ethernet.h`](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_ethernet.h) | W5500 图片上传与识别结果接收 |
+| [`XiUOS/.../photo_bridge.h`](XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure/photo_bridge.h) | LCD 结果状态映射与渲染 |
 
 ## 当前边界
 

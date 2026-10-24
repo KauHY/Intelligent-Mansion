@@ -10,6 +10,8 @@ static volatile int photo_ready;
 static unsigned int photo_id;
 /* 0 idle, 1 requested, 2 sending, 3 awaiting saved, 4 saved */
 static int photo_state;
+static unsigned int photo_toast = PHOTO_TOAST_CAPTURED;
+static void photo_result_set(int status, const char *message, const char *board_text);
 #if defined(PHOTO_WIFI_TCP) && defined(PHOTO_ETHERNET_TCP)
 #error "Select only one photo network transport"
 #endif
@@ -102,6 +104,29 @@ static void photo_init(void)
 #endif
 }
 
+/* The PC sends boardText for future full-font builds.  This image deliberately
+ * uses fixed, audited Chinese artwork for its result categories, so arbitrary
+ * names can never render as mojibake on the K210 LCD. */
+static void photo_result_set(int status, const char *message, const char *board_text)
+{
+    unsigned int toast = PHOTO_TOAST_FAILED;
+    switch (status) {
+    case 1: toast = PHOTO_TOAST_SUCCESS; break;
+    case 2: toast = PHOTO_TOAST_DUPLICATE; break;
+    case 3: toast = PHOTO_TOAST_NO_PERMISSION; break;
+    case 4: toast = PHOTO_TOAST_NOT_RECOGNIZED; break;
+    case 5:
+        toast = message && strstr(message, "未开始") ? PHOTO_TOAST_NOT_STARTED : PHOTO_TOAST_ENDED;
+        break;
+    case 7: toast = PHOTO_TOAST_UNAVAILABLE; break;
+    case -1: toast = PHOTO_TOAST_CAPTURED; break;
+    default: break;
+    }
+    photo_toast = toast;
+    printf("[photo] result status=%d toast=%u boardText=%s\n", status, toast,
+           board_text && *board_text ? board_text : "(none)");
+}
+
 /* Called after camera/KPU completion and BEFORE detection boxes are painted.
  * The capture worker cannot start another DVP shot until transmission ends. */
 static void photo_send_frame(void)
@@ -153,11 +178,22 @@ static void photo_send_frame(void)
 static void photo_show_saved(int lcd_fd)
 {
     int show = 0;
+    unsigned int toast = PHOTO_TOAST_CAPTURED;
+    uint16_t ink_color = 0xffff;
     if (!photo_ready) return;
     PrivMutexObtain(&photo_mutex);
-    if (photo_state == 4) { photo_state = 0; show = 1; }
+    if (photo_state == 4) {
+        photo_state = 0;
+        toast = photo_toast;
+        photo_toast = PHOTO_TOAST_CAPTURED;
+        show = 1;
+    }
     PrivMutexAbandon(&photo_mutex);
     if (!show) return;
+    if (toast >= PHOTO_TOAST_COUNT) toast = PHOTO_TOAST_FAILED;
+    if (toast == PHOTO_TOAST_SUCCESS) ink_color = 0x07e0;
+    else if (toast == PHOTO_TOAST_DUPLICATE) ink_color = 0xffe0;
+    else if (toast == PHOTO_TOAST_NO_PERMISSION) ink_color = 0xf800;
     uint16_t row[LCD_SIZE];
     LcdWriteParam p = {0};
     p.type = LCD_DOT_TYPE;
@@ -168,8 +204,8 @@ static void photo_show_saved(int lcd_fd)
         for (int x = 0; x < LCD_SIZE; x++) {
             int gx = x - (LCD_SIZE - PHOTO_FONT_W) / 2, gy = y - 6;
             int ink = gx >= 0 && gx < PHOTO_FONT_W && gy >= 0 && gy < PHOTO_FONT_H &&
-                (photo_font[gy][gx / 8] & (0x80 >> (gx % 8)));
-            row[x] = ink ? 0xffff : 0x0000;
+                (photo_toast_font[toast][gy][gx / 8] & (0x80 >> (gx % 8)));
+            row[x] = ink ? ink_color : 0x0000;
         }
         p.pixel_info.y_startpos = LCD_SIZE - PHOTO_FONT_H - 12 + y;
         p.pixel_info.y_endpos = p.pixel_info.y_startpos;
@@ -181,7 +217,7 @@ static void photo_show_saved(int lcd_fd)
         p.pixel_info.y_startpos = p.pixel_info.y_endpos = y;
         PrivWrite(lcd_fd, &p, NULL_PARAMETER);
     }
-    printf("\n[photo] saved toast complete\n");
+    printf("\n[photo] result toast=%u complete\n", toast);
 }
 #else
 #define photo_init() ((void)0)

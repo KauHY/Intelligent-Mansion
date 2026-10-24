@@ -22,6 +22,67 @@ static int pe_expired(uint32_t start, uint32_t limit)
     return (uint32_t)(PrivGetTickTime()-start) >= limit;
 }
 
+static uint32_t pe_read_u32(const unsigned char *p)
+{
+    return ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) |
+           ((uint32_t)p[2] << 8) | (uint32_t)p[3];
+}
+
+/* Read exactly size bytes.  A FIN after all bytes were received is harmless;
+ * a FIN before that point is a truncated result and must not be displayed. */
+static int pe_recv_exact(unsigned char *data, size_t size, uint32_t timeout_ms)
+{
+    size_t received = 0;
+    uint32_t start = PrivGetTickTime();
+    while (received < size) {
+        int32_t n;
+        if (pe_expired(start, timeout_ms)) return -1;
+        n = wiz_sock_recv(PHOTO_ETH_SOCKET, data + received,
+                          (uint16_t)(size - received));
+        if (n == SOCK_BUSY) { PrivTaskDelay(1); continue; }
+        if (n <= 0 || n > (int32_t)(size - received)) return -1;
+        received += (size_t)n;
+    }
+    return 0;
+}
+
+static const char *pe_json_value(const char *json, const char *key)
+{
+    const char *p = strstr(json, key);
+    if (!p) return NULL;
+    p += strlen(key);
+    while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') ++p;
+    return *p == ':' ? p + 1 : NULL;
+}
+
+static int pe_json_status(const char *json, int *status)
+{
+    const char *p = pe_json_value(json, "\"status\"");
+    int value = 0, digits = 0;
+    if (!p) return -1;
+    while (*p == ' ' || *p == '\t') ++p;
+    while (*p >= '0' && *p <= '9') { value = value * 10 + (*p++ - '0'); ++digits; }
+    if (!digits) return -1;
+    *status = value;
+    return 0;
+}
+
+static int pe_json_string(const char *json, const char *key, char *out, size_t out_size)
+{
+    const char *p = pe_json_value(json, key);
+    size_t n = 0;
+    if (!p || !out_size) return -1;
+    while (*p == ' ' || *p == '\t') ++p;
+    if (*p++ != '\"') return -1;
+    while (*p && *p != '\"') {
+        if (*p == '\\' || n + 1 >= out_size) return -1;
+        out[n++] = *p++;
+    }
+    if (*p != '\"') return -1;
+    out[n] = 0;
+    return 0;
+}
+
 static int pe_send(const unsigned char *data, size_t size, uint32_t start)
 {
     while (size) {
@@ -41,12 +102,16 @@ static int pe_send(const unsigned char *data, size_t size, uint32_t start)
 static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
                                    int width, int height)
 {
-    unsigned char header[24], expected[12], ack[12];
+    unsigned char header[24], expected[12], ack[12], json_size[4];
+    static unsigned char json[PHOTO_ETH_JSON_MAX_BYTES + 1];
     uint8_t peer[4] = PHOTO_ETH_PC;
     wiz_NetInfo net = { .mac=PHOTO_ETH_MAC, .ip=PHOTO_ETH_IP,
         .sn=PHOTO_ETH_NETMASK, .gw=PHOTO_ETH_GATEWAY, .dns={0,0,0,0},
         .dhcp=NETINFO_STATIC };
     size_t size = (size_t)width * height * 2, received = 0;
+    uint32_t json_length;
+    int status;
+    char message[96] = {0}, board_text[128] = {0};
     uint32_t crc = model_crc32(pixels, size), start = PrivGetTickTime();
     const char *stage = "configure network", *reason = "operation failed";
     int rc = 0;
@@ -110,9 +175,33 @@ static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
         received += n;
     }
     if (memcmp(ack, expected, sizeof(ack))) goto fail;
-    /* ACK proves the last queued send reached the PC and was saved. */
+    /* ACK proves the image reached the PC.  The same TCP connection now
+     * carries a 4-byte big-endian result length followed by UTF-8 JSON. */
+    stage = "PC result length";
+    if (pe_recv_exact(json_size, sizeof(json_size), PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
+    json_length = pe_read_u32(json_size);
+    if (!json_length || json_length > PHOTO_ETH_JSON_MAX_BYTES) goto json_fail;
+    stage = "PC result JSON";
+    if (pe_recv_exact(json, json_length, PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
+    json[json_length] = 0;
+    if (pe_json_status((const char *)json, &status)) goto json_fail;
+    (void)pe_json_string((const char *)json, "\"message\"", message, sizeof(message));
+    (void)pe_json_string((const char *)json, "\"boardText\"", board_text, sizeof(board_text));
+    photo_result_set(status, message, board_text);
+    /* Closing is the result-stage confirmation.  The PC records this EOF as
+     * delivered; omitting an extra ACK avoids waiting on a peer that has
+     * already half-closed after sending the JSON. */
     wiz_sock_close(PHOTO_ETH_SOCKET);
-    printf("[photo-ethernet] PC saved id=%u bytes=%u\n", id, (unsigned)size);
+    printf("[photo-ethernet] result id=%u status=%d message=%s boardText=%s\n",
+           id, status, message[0] ? message : "(none)",
+           board_text[0] ? board_text : "(none)");
+    return 0;
+json_fail:
+    /* The PC already ACKed/saved the image.  Never request it again merely
+     * because the optional LCD-result stage failed. */
+    photo_result_set(-1, NULL, NULL);
+    printf("[photo-ethernet] result unavailable stage=%s; using capture toast\n", stage);
+    wiz_sock_close(PHOTO_ETH_SOCKET);
     return 0;
 fail:
     /* Read evidence BEFORE close clears socket status and interrupts. */

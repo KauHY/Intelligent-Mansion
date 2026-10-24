@@ -13,4 +13,8 @@
 #define PHOTO_ETH_CONNECT_TIMEOUT_MS 10000U
 #define PHOTO_ETH_FRAME_TIMEOUT_MS 30000U
 #define PHOTO_ETH_ACK_TIMEOUT_MS 10000U
+/* PC sends the recognition result as a length-prefixed UTF-8 JSON document.
+ * Keep this under the W5500/board memory budget and reject larger packets. */
+#define PHOTO_ETH_JSON_TIMEOUT_MS 3000U
+#define PHOTO_ETH_JSON_MAX_BYTES 2048U
 #endif
