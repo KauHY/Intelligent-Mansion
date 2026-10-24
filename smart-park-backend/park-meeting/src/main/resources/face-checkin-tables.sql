@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `mee_face_checkin_request` (
     `status`             tinyint DEFAULT '0' COMMENT '处理状态 0处理中 1完成',
     `result`             varchar(64) DEFAULT NULL COMMENT '处理结果',
     `person_id`          varchar(64) DEFAULT NULL COMMENT '识别人员id',
-    `photo_path`         text COMMENT '照片文件路径',
+    `photo_path`         mediumtext COMMENT '照片文件路径',
     `create_time`        datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (`id`),
     UNIQUE KEY `uk_device_request` (`device_id`, `request_id`)
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS `mee_face_checkin_attendance` (
     `status`             tinyint DEFAULT NULL COMMENT '签到状态 1成功 2已签到 3无权限 4未识别 5未开始 6已结束 7处理失败',
     `request_id`         varchar(64) DEFAULT NULL COMMENT '请求id',
     `device_id`          varchar(64) DEFAULT NULL COMMENT '设备id',
-    `photo_path`         text COMMENT '照片文件路径',
+    `photo_path`         mediumtext COMMENT '照片文件路径',
     `remark`             varchar(255) DEFAULT NULL COMMENT '备注',
     `create_time`        datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `create_by`          varchar(64) DEFAULT NULL COMMENT '创建人',

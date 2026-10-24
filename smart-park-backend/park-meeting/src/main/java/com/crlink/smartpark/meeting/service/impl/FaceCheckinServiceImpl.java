@@ -104,8 +104,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                         : priorStatus == STATUS_SUCCESS || priorStatus == STATUS_ALREADY || priorStatus == STATUS_NOT_STARTED
                         ? CATEGORY_MEMBER : null);
                 result.setMeetingReserveId(dto.getMeetingReserveId());
-                MeetingReserve priorMeeting = getActiveMeeting(dto.getMeetingReserveId());
-                if (priorMeeting != null) { result.setMeetingSubject(priorMeeting.getMeetingSubject()); }
+                if (verifyMeeting != null) { result.setMeetingSubject(verifyMeeting.getMeetingSubject()); }
                 if (existingReq.getPersonId() != null) {
                     FaceCheckinPerson priorPerson = getById(existingReq.getPersonId());
                     if (priorPerson != null) {
@@ -147,8 +146,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             result.setEmployeeNo(matched.getEmployeeNo());
             result.setPersonType(matched.getPersonType());
             result.setMeetingReserveId(dto.getMeetingReserveId());
-            MeetingReserve currentMeeting = getActiveMeeting(dto.getMeetingReserveId());
-            if (currentMeeting != null) { result.setMeetingSubject(currentMeeting.getMeetingSubject()); }
+            if (verifyMeeting != null) { result.setMeetingSubject(verifyMeeting.getMeetingSubject()); }
 
             FaceCheckinMeetingMember member = memberMapper.selectOne(
                     new LambdaQueryWrapper<FaceCheckinMeetingMember>()
@@ -199,7 +197,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             }
 
             LocalDateTime now = LocalDateTime.now();
-            MeetingReserve reserve = getActiveMeeting(dto.getMeetingReserveId());
+            MeetingReserve reserve = verifyMeeting;
             String remark = "";
             LocalDateTime attendanceEnd = reserve != null ? reserve.getAttendanceEndTime() : null;
             
@@ -733,6 +731,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean saveMeeting(FaceCheckinMeetingDTO dto) {
+        validateMeetingTextLength(dto);
         LocalDateTime[] attendanceWindow = validateMeetingTimeWindow(dto);
         MeetingReserve meeting = new MeetingReserve();
         meeting.setEmployeeId("face-checkin");
@@ -769,6 +768,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (meeting == null || Boolean.TRUE.equals(meeting.getDeleted())) {
             throw new IllegalArgumentException("会议不存在");
         }
+        validateMeetingTextLength(dto);
         LocalDateTime[] attendanceWindow = validateMeetingTimeWindow(dto);
         meeting.setMeetingSubject(dto.getMeetingSubject());
         meeting.setMeetingTimeStart(LocalDateTime.parse(dto.getMeetingTimeStart(), DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
@@ -806,6 +806,16 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             return Collections.emptyList();
         }
         return personIds.stream().filter(StringUtils::isNotBlank).distinct().collect(Collectors.toList());
+    }
+
+    /** 主题/备注长度对齐 mee_meeting_reserve 表约束（meeting_subject varchar(30)、remark varchar(255)）。 */
+    private void validateMeetingTextLength(FaceCheckinMeetingDTO dto) {
+        if (dto.getMeetingSubject() != null && dto.getMeetingSubject().length() > 30) {
+            throw new IllegalArgumentException("会议主题最多30字");
+        }
+        if (dto.getRemark() != null && dto.getRemark().length() > 255) {
+            throw new IllegalArgumentException("备注最多255字");
+        }
     }
 
     private LocalDateTime[] validateMeetingTimeWindow(FaceCheckinMeetingDTO dto) {

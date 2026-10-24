@@ -254,7 +254,11 @@
           label="会议主题"
           required
         >
-          <a-input v-model:value="meetingForm.meetingSubject" />
+          <a-input
+            v-model:value="meetingForm.meetingSubject"
+            :maxlength="30"
+            placeholder="最多30字"
+          />
         </a-form-item>
         <a-form-item
           label="开始时间"
@@ -315,7 +319,11 @@
           />
         </a-form-item>
         <a-form-item label="备注">
-          <a-textarea v-model:value="meetingForm.remark" />
+          <a-textarea
+            v-model:value="meetingForm.remark"
+            :maxlength="255"
+            placeholder="最多255字"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -432,7 +440,7 @@ export default defineComponent({
 
     const statusText = (status: number) => {
       const statusNames: Record<number, string> = {
-        1: '签到成功', 2: '重复签到', 3: '未授权', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
+        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
       };
       return statusNames[status] || '未知状态';
     };
@@ -643,6 +651,8 @@ export default defineComponent({
     };
     const saveMeeting = async () => {
       if (!meetingForm.meetingSubject) { message.error('请输入会议主题'); return; }
+      if (meetingForm.meetingSubject.length > 30) { message.error('会议主题最多30字'); return; }
+      if (meetingForm.remark && meetingForm.remark.length > 255) { message.error('备注最多255字'); return; }
       if (!meetingForm.meetingTimeStart) { message.error('请选择开始时间'); return; }
       if (!meetingForm.durationMinutes) { message.error('请选择持续时间'); return; }
       if (!meetingForm.attendanceTimeStart || !meetingForm.attendanceTimeEnd) { message.error('请设置考勤时间'); return; }
