@@ -1,0 +1,309 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-label="Intelligent Mansion face check-in pipeline HUD">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="36%" r="85%">
+      <stop offset="0" stop-color="#0e1a33"/>
+      <stop offset=".55" stop-color="#081226"/>
+      <stop offset="1" stop-color="#04070d"/>
+    </radialGradient>
+    <radialGradient id="orbA">
+      <stop offset="0" stop-color="#34d399" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbB">
+      <stop offset="0" stop-color="#38bdf8" stop-opacity=".06"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="50%" r="72%">
+      <stop offset=".55" stop-color="#020408" stop-opacity="0"/>
+      <stop offset="1" stop-color="#020408" stop-opacity=".5"/>
+    </radialGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1e3a5f" stop-opacity=".15"/>
+      <stop offset=".5" stop-color="#2dd4bf" stop-opacity=".5"/>
+      <stop offset="1" stop-color="#1e3a5f" stop-opacity=".15"/>
+    </linearGradient>
+    <linearGradient id="sheenG" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#34d399" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#34d399" stop-opacity=".9"/>
+      <stop offset="1" stop-color="#34d399" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0v40" fill="none" stroke="#34d399" stroke-opacity=".035"/>
+    </pattern>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="#000" opacity=".2"/>
+    </pattern>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="2.4"/></filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0"/>
+    </filter>
+  </defs>
+
+  <style>
+    @keyframes rise   { from { opacity: 0; transform: translateY(14px); } }
+    @keyframes glowP  { from { opacity: .3; } to { opacity: .6; } }
+    @keyframes blink  { 0%, 54% { opacity: 1; } 55%, 100% { opacity: 0; } }
+    @keyframes sheenM { from { transform: translateX(0); } to { transform: translateX(750px); } }
+    @keyframes scanM  { from { transform: translateY(0); } to { transform: translateY(96px); } }
+    @keyframes lmP    { from { opacity: .25; } to { opacity: 1; } }
+    @keyframes pf     { 0% { transform: scaleX(.2); } 14% { transform: scaleX(.36); }
+                        28% { transform: scaleX(.52); } 42% { transform: scaleX(.68); }
+                        56% { transform: scaleX(.84); } 70%, 100% { transform: scaleX(1); } }
+    @keyframes flowR  { from { transform: translateX(0); opacity: 0; } 6% { opacity: 1; }
+                        94% { opacity: 1; } to { transform: translateX(660px); opacity: 0; } }
+    @keyframes flowL  { from { transform: translateX(0); opacity: 0; } 6% { opacity: 1; }
+                        94% { opacity: 1; } to { transform: translateX(-660px); opacity: 0; } }
+    @keyframes march  { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -28; } }
+    @keyframes marchW { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -22; } }
+    @keyframes drawK  { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+    @keyframes nodeP  { from { opacity: .7; } to { opacity: 1; } }
+    @keyframes lcdP   { from { opacity: .8; } to { opacity: 1; } }
+    @keyframes ledP   { from { opacity: .35; } to { opacity: 1; } }
+    @keyframes orbA   { from { transform: translate(0, 0); } to { transform: translate(-26px, 14px); } }
+    @keyframes orbB   { from { transform: translate(0, 0); } to { transform: translate(24px, -12px); } }
+
+    .rA { animation: rise .9s cubic-bezier(.16,1,.3,1) both; }
+    .rB { animation: rise .9s cubic-bezier(.16,1,.3,1) .12s both; }
+    .rC { animation: rise .9s cubic-bezier(.16,1,.3,1) .24s both; }
+    .rD { animation: rise .9s cubic-bezier(.16,1,.3,1) .36s both; }
+    .rE { animation: rise .9s cubic-bezier(.16,1,.3,1) .5s both; }
+    .dl1 { stroke-dasharray: 1; animation: drawK 1s cubic-bezier(.65,0,.35,1) .5s both; }
+    .dl2 { stroke-dasharray: 1; animation: drawK 1s cubic-bezier(.65,0,.35,1) .6s both; }
+    .dl3 { stroke-dasharray: 1; animation: drawK 1s cubic-bezier(.65,0,.35,1) .7s both; }
+    .dl4 { stroke-dasharray: 1; animation: drawK 1s cubic-bezier(.65,0,.35,1) .8s both; }
+    .dl5 { stroke-dasharray: 1; animation: drawK 1s cubic-bezier(.65,0,.35,1) .95s both; }
+    .glowT { animation: glowP 7s ease-in-out infinite alternate; }
+    .caret { animation: blink 1.1s steps(1) infinite; }
+    .sheen { animation: sheenM 6s ease-in-out infinite alternate; }
+    .scanL { animation: scanM 4.8s ease-in-out infinite alternate; }
+    .lm  { animation: lmP 2.2s ease-in-out infinite alternate; }
+    .lm2 { animation: lmP 2.2s ease-in-out .18s infinite alternate; }
+    .lm3 { animation: lmP 2.2s ease-in-out .36s infinite alternate; }
+    .lm4 { animation: lmP 2.2s ease-in-out .54s infinite alternate; }
+    .lm5 { animation: lmP 2.2s ease-in-out .72s infinite alternate; }
+    .pfill { transform-box: fill-box; transform-origin: left center;
+             animation: pf 6s steps(1,end) infinite; }
+    .fR  { animation: flowR 3.8s linear infinite; }
+    .fR2 { animation: flowR 3.8s linear 1.9s infinite; }
+    .fL  { animation: flowL 4.4s linear infinite; }
+    .march { animation: march 1.3s linear infinite; }
+    .node  { animation: nodeP 3.4s ease-in-out infinite alternate; }
+    .n2 { animation: nodeP 3.4s ease-in-out .4s infinite alternate; }
+    .n3 { animation: nodeP 3.4s ease-in-out .8s infinite alternate; }
+    .n4 { animation: nodeP 3.4s ease-in-out 1.2s infinite alternate; }
+    .chk  { animation: drawK .7s cubic-bezier(.65,0,.35,1) 1.2s both,
+                        glowP 2.6s ease-in-out 2.2s infinite alternate; }
+    .chk2 { stroke-dasharray: 1; animation: drawK .7s cubic-bezier(.65,0,.35,1) 1.2s both; }
+    .lcd  { animation: lcdP 3.2s ease-in-out infinite alternate; }
+    .led  { animation: ledP 1.6s ease-in-out infinite alternate; }
+    .le2  { animation: ledP 1.6s ease-in-out .45s infinite alternate; }
+    .le3  { animation: ledP 1.6s ease-in-out .9s infinite alternate; }
+    .waveF { animation: marchW 1.1s linear infinite; }
+    .o1 { animation: orbA 26s ease-in-out infinite alternate; }
+    .o2 { animation: orbB 32s ease-in-out -10s infinite alternate; }
+    @keyframes bob   { from { transform: translateY(0); } to { transform: translateY(-2.5px); } }
+    @keyframes clawW { 0%, 44% { transform: translateY(0); } 50%, 94% { transform: translateY(-3.2px); } 100% { transform: translateY(0); } }
+    @keyframes blinkE { 0%, 88% { opacity: 1; } 90%, 96% { opacity: 0; } 98%, 100% { opacity: 1; } }
+    @keyframes tailW { 0%, 40% { transform: translateY(0); } 46%, 90% { transform: translateY(-3.2px); } 96%, 100% { transform: translateY(0); } }
+    @keyframes bub { from { transform: translateY(0); opacity: 0; } 12% { opacity: .8; } to { transform: translateY(-16px); opacity: 0; } }
+    .bobA { animation: bob 4.2s ease-in-out infinite alternate; }
+    .bobB { animation: bob 5s ease-in-out -1.6s infinite alternate; }
+    .clawR { animation: clawW 3.2s steps(1) infinite; }
+    .eyeB  { animation: blinkE 5.2s steps(1) infinite; }
+    .tailT { animation: tailW 3.6s steps(1) infinite; }
+    .bub   { animation: bub 4s ease-out infinite; }
+    .bub2  { animation: bub 4s ease-out 2s infinite; }
+
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+  </style>
+
+  <!-- 底色 / 氛围 / 网格 / 暗角 / 颗粒 -->
+  <rect width="1200" height="440" fill="url(#bg)"/>
+  <ellipse class="o1" cx="600" cy="150" rx="430" ry="210" fill="url(#orbA)"/>
+  <ellipse class="o2" cx="1010" cy="320" rx="290" ry="180" fill="url(#orbB)"/>
+  <rect width="1200" height="440" fill="url(#grid)"/>
+  <rect width="1200" height="440" fill="url(#vig)"/>
+  <rect width="1200" height="440" filter="url(#grain)" opacity=".5"/>
+
+  <!-- HUD 四角框线（入场描线） -->
+  <g fill="none" stroke="#34d399" stroke-width="2" opacity=".6" stroke-linecap="round">
+    <path class="dl1" d="M20 46V26q0-6 6-6h20" pathLength="1" stroke-dasharray="1"/>
+    <path class="dl2" d="M1154 20h20q6 0 6 6v20" pathLength="1" stroke-dasharray="1"/>
+    <path class="dl3" d="M1180 394v20q0 6-6 6h-20" pathLength="1" stroke-dasharray="1"/>
+    <path class="dl4" d="M46 420h-20q-6 0-6-6v-20" pathLength="1" stroke-dasharray="1"/>
+  </g>
+
+  <g font-family="ui-monospace,'Cascadia Mono','JetBrains Mono',Consolas,monospace">
+
+    <!-- 顶部状态行 -->
+    <g class="rA">
+      <circle class="led" cx="60" cy="40" r="3" fill="#34d399"/>
+      <text x="72" y="44" font-size="10" font-weight="700" letter-spacing="3" fill="#34d399" opacity=".9">E2E VERIFIED ON BOARD</text>
+    </g>
+    <text class="rA" x="1144" y="44" text-anchor="end" font-size="10" letter-spacing="2" fill="#64748b">320×240 RGB565 · XiUOS RTOS</text>
+
+    <!-- 主标题（辉光层 + 实体层） -->
+    <g class="rA" font-family="'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif" font-weight="700" text-anchor="middle" letter-spacing="14" font-size="54">
+      <text class="glowT" x="600" y="132" fill="#10b981" opacity=".45" filter="url(#glow)">INTELLIGENT MANSION</text>
+      <text x="600" y="132" fill="#f8fafc">INTELLIGENT MANSION</text>
+    </g>
+
+    <!-- 中文副标题 + 闪烁光标 -->
+    <g class="rB">
+      <text x="600" y="176" text-anchor="middle" font-family="'Segoe UI',system-ui,'PingFang SC','Microsoft YaHei',sans-serif" font-size="16" letter-spacing="5" fill="#94a3b8">智慧楼宇人脸识别签到系统 · 端到端闭环已跑通</text>
+      <rect class="caret" x="829" y="163" width="7" height="15" fill="#5eead4" opacity=".9"/>
+    </g>
+
+    <!-- 流光分隔线 -->
+    <g class="rC">
+      <line x1="180" y1="202" x2="1020" y2="202" stroke="#1e293b" stroke-width="1"/>
+      <rect class="sheen" x="180" y="201.2" width="90" height="1.6" fill="url(#sheenG)"/>
+    </g>
+
+    <!-- 主舞台 -->
+    <g class="rD">
+
+      <!-- 左：采集取景框 -->
+      <rect x="80" y="225" width="190" height="150" rx="9" fill="#0a1322" stroke="#1c3a5a"/>
+      <g stroke="#34d399" stroke-width="2" fill="none" opacity=".75" stroke-linecap="round">
+        <path class="dl5" d="M92 249V241q0-4 4-4h8" pathLength="1" stroke-dasharray="1"/>
+        <path class="dl5" d="M246 237h8q4 0 4 4v8" pathLength="1" stroke-dasharray="1"/>
+        <path class="dl5" d="M258 351v8q0 4-4 4h-8" pathLength="1" stroke-dasharray="1"/>
+        <path class="dl5" d="M104 363h-8q-4 0-4-4v-8" pathLength="1" stroke-dasharray="1"/>
+      </g>
+      <circle cx="175" cy="288" r="27" fill="none" stroke="#5eead4" stroke-width="1.5" opacity=".85"/>
+      <path d="M141 336q34-24 68 0" fill="none" stroke="#5eead4" stroke-width="1.5" opacity=".85"/>
+      <g fill="#34d399">
+        <circle class="lm"  cx="166" cy="282" r="1.8"/>
+        <circle class="lm2" cx="184" cy="282" r="1.8"/>
+        <circle class="lm3" cx="175" cy="293" r="1.8"/>
+        <circle class="lm4" cx="167" cy="304" r="1.8"/>
+        <circle class="lm5" cx="183" cy="304" r="1.8"/>
+      </g>
+      <rect class="scanL" x="94" y="236" width="162" height="2.5" fill="#34d399" opacity=".5"/>
+      <text x="96" y="353" font-size="8.5" letter-spacing="1.5" fill="#4b5d74">DETECT</text>
+      <rect x="150" y="347" width="100" height="5" rx="2.5" fill="#0d1f33"/>
+      <rect class="pfill" x="150" y="347.5" width="99" height="4" rx="2" fill="#34d399" opacity=".85"/>
+      <text x="175" y="394" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#47586e">OV 摄像头 · YOLOv2 检测</text>
+
+      <!-- 中：上行链路（图像上传） -->
+      <line x1="270" y1="272" x2="930" y2="272" stroke="url(#rail)" stroke-width="1.5"/>
+      <circle class="node" cx="402" cy="272" r="4.5" fill="#0b1526" stroke="#34d399" stroke-width="1.4"/>
+      <circle class="n2"   cx="534" cy="272" r="4.5" fill="#0b1526" stroke="#34d399" stroke-width="1.4"/>
+      <circle class="n3"   cx="666" cy="272" r="4.5" fill="#0b1526" stroke="#34d399" stroke-width="1.4"/>
+      <circle class="n4"   cx="798" cy="272" r="4.5" fill="#0b1526" stroke="#34d399" stroke-width="1.4"/>
+      <g font-size="9.5" letter-spacing="1" fill="#64748b" text-anchor="middle">
+        <text x="402" y="256">W5500</text>
+        <text x="534" y="256">BRIDGE :9000</text>
+        <text x="666" y="256">GATEWAY :8099</text>
+        <text x="798" y="256">SFACE :8901</text>
+      </g>
+      <circle class="fR"  cx="270" cy="272" r="4" fill="#34d399" filter="url(#soft)"/>
+      <circle class="fR2" cx="270" cy="272" r="4" fill="#34d399" filter="url(#soft)"/>
+
+      <!-- 中：回传链路（识别结果返程） -->
+      <path class="march" d="M930 328H270" fill="none" stroke="#34d399" stroke-opacity=".3" stroke-width="1" stroke-dasharray="7 7"/>
+      <circle class="fL" cx="930" cy="328" r="3.5" fill="#2dd4bf" opacity=".85" filter="url(#soft)"/>
+      <text x="600" y="350" text-anchor="middle" font-size="10" letter-spacing="1" fill="#4b5d74">识别结果 4B 长度 + JSON 回传 · EOF 即送达</text>
+
+      <!-- 右：LCD 回显面板（双层边框） -->
+      <rect x="930" y="225" width="190" height="150" rx="9" fill="#0a0f15" stroke="#1c3a5a"/>
+      <rect x="940" y="235" width="170" height="130" rx="5" fill="#06170f" stroke="#1b4634" stroke-opacity=".8"/>
+      <rect x="940" y="235" width="170" height="130" rx="5" fill="url(#scan)"/>
+      <path class="chk" d="M956 302 974 319 1006 283" pathLength="1" stroke-dasharray="1" fill="none" stroke="#34d399" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#soft)"/>
+      <path class="chk2" d="M956 302 974 319 1006 283" pathLength="1" stroke-dasharray="1" fill="none" stroke="#6ee7b7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <text class="lcd" x="1018" y="308" font-size="20" font-weight="700" letter-spacing="1" fill="#34d399" font-family="'Microsoft YaHei','PingFang SC','Noto Sans CJK SC',sans-serif">签到成功</text>
+      <rect x="1018" y="318" width="80" height="2" fill="#34d399" opacity=".35"/>
+      <text x="1025" y="394" text-anchor="middle" font-size="10" letter-spacing="1.5" fill="#47586e">LCD 状态回显面板</text>
+    </g>
+
+    <!-- 底部遥测行 -->
+    <g class="rE">
+      <g fill="#34d399">
+        <circle class="led" cx="84" cy="410" r="3.5"/>
+        <circle class="le2" cx="136" cy="410" r="3.5"/>
+        <circle class="le3" cx="188" cy="410" r="3.5"/>
+      </g>
+      <g font-size="9.5" fill="#64748b" letter-spacing="1">
+        <text x="93" y="414">CRC32</text>
+        <text x="145" y="414">ACK</text>
+        <text x="197" y="414">JSON EOF</text>
+      </g>
+      <text x="920" y="414" text-anchor="end" font-size="9.5" fill="#64748b" letter-spacing="1">SIM ≥ 0.50</text>
+      <polyline class="waveF" points="936,410 954,404 972,414 992,399 1012,413 1032,405 1052,416 1072,401 1092,410 1120,406" fill="none" stroke="#34d399" stroke-opacity=".45" stroke-width="1.3" stroke-dasharray="5 6"/>
+    </g>
+
+    <!-- 协议签名条 -->
+    <text class="rE" x="600" y="433" text-anchor="middle" font-size="8" letter-spacing="1.5" fill="#334155">XPH1 24B HDR · CRC32 FULL-FRAME · ACK 12B · 4B LEN + JSON ≤ 2048 B</text>
+
+    <!-- 边缘数据流微光 -->
+    <g font-size="8" fill="#34d399" opacity=".08" letter-spacing="1">
+      <text x="52" y="248">0xA3</text><text x="52" y="266">0x5F</text><text x="52" y="284">0x12</text>
+      <text x="52" y="302">0x77</text><text x="52" y="320">0xC0</text><text x="52" y="338">0x9E</text>
+      <text x="1148" y="248" text-anchor="end">0x1F</text><text x="1148" y="266" text-anchor="end">0x8B</text>
+      <text x="1148" y="284" text-anchor="end">0x44</text><text x="1148" y="302" text-anchor="end">0xE2</text>
+      <text x="1148" y="320" text-anchor="end">0x09</text><text x="1148" y="338" text-anchor="end">0xD6</text>
+    </g>
+
+    <!-- 左翼点缀：Clawd 像素螃蟹（扁平宽体，#CD6E58，纯黑像素眼，挥钳 + 眨眼 + 悬浮） -->
+    <g>
+      <rect x="36" y="108" width="82" height="54" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
+      <g class="bobA">
+        <g fill="#CD6E58" shape-rendering="crispEdges">
+          <!-- 身体：扁平宽体三层 -->
+          <rect x="58" y="124" width="44" height="4"/>
+          <rect x="54" y="128" width="52" height="8"/>
+          <rect x="58" y="136" width="44" height="4"/>
+          <!-- 左钳臂（举钳） -->
+          <rect class="clawR" x="46" y="122" width="4" height="8"/>
+          <rect class="clawR" x="42" y="116" width="8" height="6"/>
+          <!-- 右钳臂 -->
+          <rect class="clawR" x="110" y="122" width="4" height="8"/>
+          <rect class="clawR" x="108" y="116" width="8" height="6"/>
+          <!-- 六条腿 -->
+          <rect x="60" y="140" width="4" height="6"/>
+          <rect x="68" y="140" width="4" height="6"/>
+          <rect x="76" y="140" width="4" height="6"/>
+          <rect x="82" y="140" width="4" height="6"/>
+          <rect x="90" y="140" width="4" height="6"/>
+          <rect x="98" y="140" width="4" height="6"/>
+        </g>
+        <!-- 眼睛：1x1 纯黑像素，眨眼时熄灭（无嘴，情绪全靠眼睛） -->
+        <g fill="#0b0f14" shape-rendering="crispEdges">
+          <rect x="64" y="128" width="4" height="4" class="eyeB"/>
+          <rect x="84" y="128" width="4" height="4" class="eyeB"/>
+        </g>
+      </g>
+      <text x="77" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">CLAWD</text>
+    </g>
+
+    <!-- 右翼点缀：DeepSeek 像素鲸鱼（头朝左游向中心，#4D6BFE，摆尾 + 冒泡） -->
+    <g>
+      <rect x="1080" y="108" width="80" height="54" fill="none" stroke="#34d399" stroke-opacity=".18" stroke-dasharray="3 4"/>
+      <g class="bobB">
+        <g fill="#4D6BFE" shape-rendering="crispEdges">
+          <!-- 身体：弓形五层（左端圆钝为头部，右端收细接尾） -->
+          <rect x="1108" y="126" width="32" height="4"/>
+          <rect x="1100" y="130" width="48" height="4"/>
+          <rect x="1096" y="134" width="52" height="4"/>
+          <rect x="1100" y="138" width="44" height="4"/>
+          <rect x="1108" y="142" width="32" height="4"/>
+          <!-- 尾柄 + 上翘分叉尾鳍（右端，摆动） -->
+          <rect class="tailT" x="1144" y="120" width="4" height="8"/>
+          <rect class="tailT" x="1148" y="112" width="4" height="8"/>
+          <rect class="tailT" x="1152" y="112" width="4" height="4"/>
+          <!-- 胸鳍 -->
+          <rect x="1112" y="146" width="8" height="4"/>
+        </g>
+        <!-- 眼睛：头部前端，黑像素 -->
+        <rect x="1104" y="134" width="4" height="4" fill="#0b0f14" shape-rendering="crispEdges"/>
+        <!-- 气泡（自头顶前上方升起） -->
+        <circle class="bub"  cx="1088" cy="126" r="1.5" fill="#7aa2ff"/>
+        <circle class="bub2" cx="1084" cy="130" r="1"  fill="#7aa2ff"/>
+      </g>
+      <text x="1120" y="176" text-anchor="middle" font-size="7" letter-spacing="1" fill="#4b5d74" opacity=".75">DEEPSEEK</text>
+    </g>
+  </g>
+</svg>
