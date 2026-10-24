@@ -23,6 +23,8 @@ STATE = {
     'received': 0,
     'last_result': 'none',
     'meeting_id': '',
+    'board_json': 0,
+    'board_ack': 0,
     'lock': threading.Lock(),
 }
 
@@ -155,6 +157,63 @@ def log_identification(result):
     )
 
 
+# 板端 LCD 只有单行点阵的显示余量，PC 预先拼好短文案，板端拿到即可渲染。
+BOARD_TEXT = {
+    1: '签到成功', 2: '已签到', 3: '非与会人员',
+    4: '未识别', 5: '未在签到时段', 7: '处理失败',
+}
+
+
+def board_text(result):
+    text = BOARD_TEXT.get(result.get('status'), '处理失败')
+    name = result.get('personName')
+    if name and result.get('status') in (1, 2, 3):
+        return f'{name} {text}'
+    return text
+
+
+def send_result_to_board(conn, photo_id, result):
+    """识别 JSON 回传板端；任何失败只记日志，绝不影响已完成的识别结果。
+
+    报文 = 4 字节 JSON 长度（网络字节序）+ JSON 本体，随后 shutdown(SHUT_WR)。
+    现有板端固件在 ACK 后立即关闭连接，JSON 写入会以 EPIPE/Reset 告终，
+    这是预期行为而不是错误；新固件按长度读完 JSON 后关闭或回 1 字节回执。
+    """
+    payload = json.dumps({
+        'status': result.get('status', 7),
+        'message': result.get('message', 'unknown'),
+        'personName': result.get('personName'),
+        'employeeNo': result.get('employeeNo'),
+        'personType': result.get('personType'),
+        'participantCategory': result.get('participantCategory'),
+        'meetingReserveId': result.get('meetingReserveId'),
+        'meetingSubject': result.get('meetingSubject'),
+        'requestId': result.get('requestId'),
+        'boardText': board_text(result),
+        'timestamp': timestamp(),
+    }, ensure_ascii=False).encode('utf-8')
+    try:
+        conn.sendall(struct.pack('!I', len(payload)) + payload)
+        conn.shutdown(socket.SHUT_WR)
+        # 回执窗口：旧固件直接关闭连接（EOF，立即返回）；新固件读完 JSON 后
+        # 可以关闭，也可以回 1 字节确认。两者都算送达。
+        conn.settimeout(3)
+        try:
+            reply = conn.recv(1)
+        except (TimeoutError, ConnectionError):
+            reply = b''
+        with STATE['lock']:
+            STATE['board_json'] += 1
+            STATE['board_ack'] += bool(reply)
+        mode = 'ack' if reply else 'eof'
+        print(f'[board-result] time={timestamp()} id={photo_id} bytes={len(payload)} '
+              f'delivered=yes mode={mode}', flush=True)
+    except OSError as exc:
+        # ACK 之后板端主动断开时 JSON 写入失败：旧固件不读 JSON，属预期路径。
+        print(f'[board-result] time={timestamp()} id={photo_id} bytes={len(payload)} '
+              f'delivered=no reason={exc.__class__.__name__}', flush=True)
+
+
 def start_heartbeat():
     def run():
         while True:
@@ -165,11 +224,14 @@ def start_heartbeat():
                 received = STATE['received']
                 last_result = STATE['last_result']
                 meeting_id = STATE['meeting_id']
+                board_json = STATE['board_json']
+                board_ack = STATE['board_ack']
             print(
                 '[heartbeat] '
                 f'time={timestamp()} uptime_seconds={uptime} '
                 f'connections={connections} photos_received={received} '
-                f'last_result={last_result} meeting_id={meeting_id or "-"}',
+                f'last_result={last_result} meeting_id={meeting_id or "-"} '
+                f'board_json_delivered={board_json} board_ack={board_ack}',
                 flush=True,
             )
     thread = threading.Thread(target=run, name='bridge-heartbeat', daemon=True)
@@ -190,25 +252,7 @@ def handle_client(conn, peer, api_base, device_id, meeting_reserve_id, device_to
         with STATE['lock']:
             STATE['received'] += 1
             STATE['last_result'] = f'{result.get("status")}:{result.get("message")}'
-        result_json = json.dumps({
-            'status': result.get('status', 7),
-            'message': result.get('message', 'unknown'),
-            'personName': result.get('personName'),
-            'employeeNo': result.get('employeeNo'),
-            'personType': result.get('personType'),
-            'participantCategory': result.get('participantCategory'),
-            'meetingReserveId': result.get('meetingReserveId'),
-            'meetingSubject': result.get('meetingSubject'),
-            'requestId': result.get('requestId'),
-            'timestamp': timestamp(),
-        }, ensure_ascii=False).encode('utf-8')
-        conn.sendall(result_json)
-        conn.shutdown(socket.SHUT_WR)
-        conn.settimeout(3)
-        try:
-            conn.recv(1)
-        except (TimeoutError, ConnectionError):
-            pass
+        send_result_to_board(conn, photo['id'], result)
     except (OSError, ValueError, TimeoutError) as exc:
         print(f'[error] time={timestamp()} peer={peer[0]}:{peer[1]} {exc}', flush=True)
     finally:
