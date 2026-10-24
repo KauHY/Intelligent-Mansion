@@ -15,7 +15,7 @@ def main():
     out = root / 'tmp/ethernet_firmware_test'
     out.mkdir(parents=True, exist_ok=True)
     firmware = root / 'XiUOS/App_Framework/Framework/knowing/kpu/k210_yolov2_detect_procedure'
-    for name in ('photo_bridge.h', 'photo_ethernet.h', 'photo_ethernet_config.h', 'photo_toast_font.h', 'photo_orientation.h'):
+    for name in ('photo_bridge.h', 'photo_ethernet.h', 'photo_ethernet_config.h', 'photo_toast_font.h', 'photo_status_font.h', 'photo_orientation.h'):
         shutil.copyfile(firmware / name, out / name)
     driver = root / 'XiUOS/Ubiquitous/XiZi_IIoT/board/edu-riscv64/third_party_driver/include'
     (out / 'shell.h').write_text('#define SHELL_EXPORT_CMD(...)\n')

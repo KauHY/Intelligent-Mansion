@@ -5,11 +5,17 @@
 #if defined(ADD_XIZI_FEATURES) && defined(BSP_USING_LCD)
 #include <shell.h>
 #include "photo_toast_font.h"
+#include "photo_status_font.h"
 static pthread_mutex_t photo_mutex;
 static volatile int photo_ready;
 static unsigned int photo_id;
 /* 0 idle, 1 requested, 2 sending, 3 awaiting saved, 4 saved */
 static int photo_state;
+/* PC result JSON stage-2 storage: photo_ethernet.h fills the buffer, then
+ * photo_json_result() extracts the status code used to pick the toast. */
+unsigned char photo_json[1024];
+static int photo_status; /* PC check-in status code, 0 = no/default toast */
+static int photo_json_result(const char *json, size_t len);
 #if defined(PHOTO_WIFI_TCP) && defined(PHOTO_ETHERNET_TCP)
 #error "Select only one photo network transport"
 #endif
@@ -18,6 +24,31 @@ static int photo_state;
 #elif defined(PHOTO_WIFI_TCP)
 #include "photo_wifi.h"
 #endif
+/* Minimal extraction of the PC result JSON (docs 09 §7.4). The PC emits a
+ * flat one-line object with ASCII keys, so a tiny scanner finds "status"
+ * without pulling cJSON (whose library is not enabled in this build) into
+ * the detector TU. Anything unparsable keeps status 0 -> default toast. */
+static int photo_json_result(const char *json, size_t len)
+{
+    const char *key = "\"status\"";
+    const char *end = json + len;
+    const char *p;
+    photo_status = 0; /* any failure leaves the default toast */
+    if (!json || len < 9) return -1;
+    for (p = json; p <= end - 8; p++) {
+        if (memcmp(p, key, 8)) continue;
+        p += 8;
+        while (p < end && (*p == ' ' || *p == ':')) p++;
+        if (p >= end || *p < '0' || *p > '9') return -1;
+        photo_status = 0;
+        while (p < end && *p >= '0' && *p <= '9') {
+            if (photo_status < 100) photo_status = photo_status * 10 + (*p - '0');
+            p++;
+        }
+        return 0;
+    }
+    return -1;
+}
 #if defined(PHOTO_WIFI_TCP) || defined(PHOTO_ETHERNET_TCP)
 #define PHOTO_NETWORK_TCP
 #ifndef PHOTO_FACE_CONFIRM_FRAMES
@@ -121,6 +152,7 @@ static void photo_send_frame(void)
     PrivMutexObtain(&photo_mutex);
     photo_state=result==0 ? 4 : 0;
     PrivMutexAbandon(&photo_mutex);
+    if (result) photo_status = 0; /* no JSON this round: default toast */
 #else
     size_t size = (size_t)image_width * image_height * 2;
     printf("\n@PHOTO BEGIN %u %d %d %u RGB565LE %08x\n", id,
@@ -148,40 +180,46 @@ static void photo_send_frame(void)
 #endif
 }
 
-/* Rendering stays in the LCD owner's thread. Bitmap includes only the exact
- * Chinese phrase, avoiding an ASCII-only LCD font or a large CJK dependency. */
+/* Rendering stays in the LCD owner's thread. Bitmaps are the pre-baked
+ * status phrases (photo_status_font.h) selected by the PC result status,
+ * avoiding an ASCII-only LCD font or a large CJK dependency. */
 static void photo_show_saved(int lcd_fd)
 {
     int show = 0;
+    int status;
+    const photo_bitmap_t *bm;
     if (!photo_ready) return;
     PrivMutexObtain(&photo_mutex);
     if (photo_state == 4) { photo_state = 0; show = 1; }
     PrivMutexAbandon(&photo_mutex);
     if (!show) return;
+    status = photo_status;
+    photo_status = 0; /* consumed: the next round starts with the default */
+    bm = &photo_status_fonts[photo_status_bitmap(status)];
     uint16_t row[LCD_SIZE];
     LcdWriteParam p = {0};
     p.type = LCD_DOT_TYPE;
     p.pixel_info.pixel_color = row;
     p.pixel_info.x_startpos = 0;
     p.pixel_info.x_endpos = LCD_SIZE - 1;
-    for (int y = 0; y < PHOTO_FONT_H + 12; y++) {
+    for (int y = 0; y < bm->h + 12; y++) {
         for (int x = 0; x < LCD_SIZE; x++) {
-            int gx = x - (LCD_SIZE - PHOTO_FONT_W) / 2, gy = y - 6;
-            int ink = gx >= 0 && gx < PHOTO_FONT_W && gy >= 0 && gy < PHOTO_FONT_H &&
-                (photo_font[gy][gx / 8] & (0x80 >> (gx % 8)));
+            int gx = x - (LCD_SIZE - bm->w) / 2, gy = y - 6;
+            int ink = gx >= 0 && gx < bm->w && gy >= 0 && gy < bm->h &&
+                (bm->bits[gy * bm->w / 8 + gx / 8] & (0x80 >> (gx % 8)));
             row[x] = ink ? 0xffff : 0x0000;
         }
-        p.pixel_info.y_startpos = LCD_SIZE - PHOTO_FONT_H - 12 + y;
+        p.pixel_info.y_startpos = LCD_SIZE - bm->h - 12 + y;
         p.pixel_info.y_endpos = p.pixel_info.y_startpos;
         PrivWrite(lcd_fd, &p, NULL_PARAMETER);
     }
     PrivTaskDelay(2000);
     memset(row, 0, sizeof(row));
-    for (int y = LCD_SIZE - PHOTO_FONT_H - 12; y < LCD_SIZE; y++) {
+    for (int y = LCD_SIZE - bm->h - 12; y < LCD_SIZE; y++) {
         p.pixel_info.y_startpos = p.pixel_info.y_endpos = y;
         PrivWrite(lcd_fd, &p, NULL_PARAMETER);
     }
-    printf("\n[photo] saved toast complete\n");
+    printf("\n[photo] saved toast complete status=%d\n", status);
 }
 #else
 #define photo_init() ((void)0)
