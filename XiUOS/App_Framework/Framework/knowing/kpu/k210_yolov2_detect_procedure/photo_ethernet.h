@@ -12,14 +12,45 @@
 #endif
 extern int PhotoWiznetReady(void);
 
-static void pe_u32(unsigned char *p, uint32_t v)
-{
-    p[0]=v>>24; p[1]=v>>16; p[2]=v>>8; p[3]=v;
-}
-
 static int pe_expired(uint32_t start, uint32_t limit)
 {
     return (uint32_t)(PrivGetTickTime()-start) >= limit;
+}
+
+/* One-byte receipt inside the PC's 3s window: wiz_sock_send only queues the
+ * send and may report SOCK_BUSY while SENDOK is pending, and wiz_sock_close
+ * drops unwritten TX, so queue and wait for the hardware to drain. Called
+ * only in the JSON success path; failures just skip the receipt (PC logs
+ * mode=eof), never delay the toast. */
+static void pe_receipt(void)
+{
+    uint32_t start = PrivGetTickTime();
+    int32_t sent;
+    while ((sent = wiz_sock_send(PHOTO_ETH_SOCKET, (uint8_t *)"1", 1)) == SOCK_BUSY) {
+        if (pe_expired(start, PHOTO_ETH_JSON_TIMEOUT_MS)) {
+            printf("[photo-ethernet] board receipt busy timeout\n");
+            return;
+        }
+        PrivTaskDelay(1);
+    }
+    if (sent != 1) {
+        printf("[photo-ethernet] board receipt rejected rc=%d SR=0x%02x\n",
+               (int)sent, (unsigned)getSn_SR(PHOTO_ETH_SOCKET));
+        return;
+    }
+    while (getSn_TX_FSR(PHOTO_ETH_SOCKET) != getSn_TxMAX(PHOTO_ETH_SOCKET)) {
+        if (pe_expired(start, PHOTO_ETH_JSON_TIMEOUT_MS)) {
+            printf("[photo-ethernet] board receipt drain timeout\n");
+            break;
+        }
+        PrivTaskDelay(1);
+    }
+    printf("[photo-ethernet] board receipt sent\n");
+}
+
+static void pe_u32(unsigned char *p, uint32_t v)
+{
+    p[0]=v>>24; p[1]=v>>16; p[2]=v>>8; p[3]=v;
 }
 
 static uint32_t pe_read_u32(const unsigned char *p)
@@ -102,8 +133,8 @@ static int pe_send(const unsigned char *data, size_t size, uint32_t start)
 static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
                                    int width, int height)
 {
-    unsigned char header[24], expected[12], ack[12], json_size[4];
-    static unsigned char json[PHOTO_ETH_JSON_MAX_BYTES + 1];
+    unsigned char header[24], expected[12], ack[12], json_prefix[4];
+    unsigned int json_need = 0, json_got = 0;
     uint8_t peer[4] = PHOTO_ETH_PC;
     wiz_NetInfo net = { .mac=PHOTO_ETH_MAC, .ip=PHOTO_ETH_IP,
         .sn=PHOTO_ETH_NETMASK, .gw=PHOTO_ETH_GATEWAY, .dns={0,0,0,0},
@@ -175,32 +206,50 @@ static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
         received += n;
     }
     if (memcmp(ack, expected, sizeof(ack))) goto fail;
-    /* ACK proves the image reached the PC.  The same TCP connection now
-     * carries a 4-byte big-endian result length followed by UTF-8 JSON. */
-    stage = "PC result length";
-    if (pe_recv_exact(json_size, sizeof(json_size), PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
-    json_length = pe_read_u32(json_size);
-    if (!json_length || json_length > PHOTO_ETH_JSON_MAX_BYTES) goto json_fail;
+    /* ACK proves the last queued send reached the PC and was saved. Stage 2
+     * keeps reading the same connection: the PC answers 4B JSON length +
+     * JSON, then half-closes. EOF arrives as a negative error code once the
+     * RX buffer drains, so a short read is a broken stream either way; a
+     * JSON failure only costs the toast text (the photo is already saved
+     * and checked in), never a re-capture that could duplicate the request. */
     stage = "PC result JSON";
-    if (pe_recv_exact(json, json_length, PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
-    json[json_length] = 0;
-    if (pe_json_status((const char *)json, &status)) goto json_fail;
-    (void)pe_json_string((const char *)json, "\"message\"", message, sizeof(message));
-    (void)pe_json_string((const char *)json, "\"boardText\"", board_text, sizeof(board_text));
-    photo_result_set(status, message, board_text);
-    /* Closing is the result-stage confirmation.  The PC records this EOF as
-     * delivered; omitting an extra ACK avoids waiting on a peer that has
-     * already half-closed after sending the JSON. */
+    start = PrivGetTickTime();
+    json_got = 0;
+    while (json_got < sizeof(json_prefix)) {
+        if (pe_expired(start, PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
+        int32_t n = wiz_sock_recv(PHOTO_ETH_SOCKET, json_prefix + json_got,
+                                  (uint16_t)(sizeof(json_prefix) - json_got));
+        if (n == SOCK_BUSY) { PrivTaskDelay(1); continue; }
+        if (n < 0 || n > (int32_t)(sizeof(json_prefix) - json_got)) goto json_fail;
+        json_got += (uint32_t)n;
+    }
+    json_need = ((uint32_t)json_prefix[0] << 24) | ((uint32_t)json_prefix[1] << 16) |
+                ((uint32_t)json_prefix[2] << 8) | (uint32_t)json_prefix[3];
+    if (json_need > sizeof(photo_json)) goto json_fail;
+    json_got = 0;
+    while (json_got < json_need) {
+        if (pe_expired(start, PHOTO_ETH_JSON_TIMEOUT_MS)) goto json_fail;
+        int32_t n = wiz_sock_recv(PHOTO_ETH_SOCKET, photo_json + json_got,
+                                  (uint16_t)(json_need - json_got));
+        if (n == SOCK_BUSY) { PrivTaskDelay(1); continue; }
+        if (n < 0 || n > (int32_t)(json_need - json_got)) goto json_fail;
+        json_got += (uint32_t)n;
+    }
+    printf("[photo-ethernet] board result json=%u %.*s\n",
+           (unsigned)json_need, (int)json_need, (const char *)photo_json);
+    photo_json_result((const char *)photo_json, (size_t)json_need);
+    pe_receipt();
     wiz_sock_close(PHOTO_ETH_SOCKET);
-    printf("[photo-ethernet] result id=%u status=%d message=%s boardText=%s\n",
-           id, status, message[0] ? message : "(none)",
-           board_text[0] ? board_text : "(none)");
+    printf("[photo-ethernet] PC saved id=%u bytes=%u json=%u\n",
+           id, (unsigned)size, (unsigned)json_need);
     return 0;
 json_fail:
-    /* The PC already ACKed/saved the image.  Never request it again merely
-     * because the optional LCD-result stage failed. */
-    photo_result_set(-1, NULL, NULL);
-    printf("[photo-ethernet] result unavailable stage=%s; using capture toast\n", stage);
+    /* Degrade, never retry: photo_state stays 4 so the default captured
+     * toast shows and no second check-in request is generated. */
+    photo_status = 0; /* unknown outcome: default "photo captured" toast */
+    printf("[photo-ethernet] json failed got=%u need=%u SR=0x%02x elapsed_ms=%u; default toast\n",
+           (unsigned)json_got, (unsigned)json_need, (unsigned)getSn_SR(PHOTO_ETH_SOCKET),
+           (unsigned)(PrivGetTickTime()-start));
     wiz_sock_close(PHOTO_ETH_SOCKET);
     return 0;
 fail:

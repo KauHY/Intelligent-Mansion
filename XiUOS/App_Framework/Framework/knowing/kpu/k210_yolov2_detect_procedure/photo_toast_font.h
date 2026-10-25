@@ -1,4 +1,6 @@
-/* Generated fixed Chinese attendance-result artwork. */
+/* Generated monochrome artwork: 人像已完成采集. */
+#ifndef PHOTO_TOAST_FONT_H
+#define PHOTO_TOAST_FONT_H
 #define PHOTO_FONT_W 168
 #define PHOTO_FONT_H 28
 #define PHOTO_TOAST_CAPTURED 0
@@ -283,3 +285,4 @@ static const unsigned char photo_toast_font[PHOTO_TOAST_COUNT][PHOTO_FONT_H][PHO
         {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00}
     },
 };
+#endif
