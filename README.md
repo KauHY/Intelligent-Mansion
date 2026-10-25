@@ -1,7 +1,7 @@
 <div align="center">
 
 <a href="#系统快照">
-<img src="./docs/readme-banner-v4.svg" alt="Intelligent Mansion - Face Check-In Pipeline" width="100%" />
+<img src="./docs/readme-banner-v5.svg" alt="Intelligent Mansion - Face Check-In Pipeline" width="100%" />
 </a>
 
 <br/>
