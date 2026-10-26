@@ -328,10 +328,22 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         if (persons.isEmpty()) {
             return null;
         }
-        List<String> templates = persons.stream().map(FaceCheckinPerson::getFaceVector).collect(Collectors.toList());
+        /* 防御：特征列只接受 base64 特征体。历史上出现过照片 dataURL 被误写入 face_vector 的脏数据，
+         * 该形状的"模板"会让 /match-batch 每次多走一次完整检测+提特征推理，且会污染比对结果；
+         * dataURL 前缀或长度异常的记录直接排除出候选。用 (person, vector) 配对列表保持索引对齐。 */
+        List<FaceCheckinPerson> candidates = persons.stream()
+                .filter(p -> {
+                    String t = p.getFaceVector();
+                    return t != null && !t.startsWith("data:image/") && t.length() % 4 == 0;
+                })
+                .collect(Collectors.toList());
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        List<String> templates = candidates.stream().map(FaceCheckinPerson::getFaceVector).collect(Collectors.toList());
         int bestIndex = callInferenceBatchService(photoBase64, templates);
-        if (bestIndex >= 0 && bestIndex < persons.size()) {
-            return persons.get(bestIndex);
+        if (bestIndex >= 0 && bestIndex < candidates.size()) {
+            return candidates.get(bestIndex);
         }
         return null;
     }
