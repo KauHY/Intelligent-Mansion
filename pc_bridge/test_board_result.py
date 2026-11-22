@@ -14,7 +14,7 @@ import struct
 import threading
 import unittest
 
-from api_bridge import send_result_to_board, board_text, STATE
+from api_bridge import send_result_to_board, board_text, board_wire_result, STATE
 
 RESULT = {
     'status': 1,
@@ -132,13 +132,51 @@ class BoardResultTests(unittest.TestCase):
     def test_board_text_mapping_and_name(self):
         cases = {
             1: '张三 签到成功', 2: '张三 已签到', 3: '张三 非与会人员',
-            4: '未识别', 5: '未在签到时段', 7: '处理失败', 99: '处理失败',
+            4: '未识别', 5: '签到未开始', 6: '签到已结束', 7: '处理失败', 99: '处理失败',
         }
         for status, expected in cases.items():
             with self.subTest(status=status):
                 self.assertEqual(board_text({**RESULT, 'status': status, 'personName': '张三'}),
                                  expected)
         self.assertEqual(board_text({**RESULT, 'status': 1, 'personName': None}), '签到成功')
+
+    def test_native_firmware_keeps_status_5_and_6(self):
+        """新固件按 status 选位图，5/6 必须原样回传。"""
+        for status, message in ((5, '签到未开始'), (6, '签到已结束')):
+            with self.subTest(status=status):
+                wire = board_wire_result({**RESULT, 'status': status, 'message': message}, legacy=False)
+                self.assertEqual(wire['status'], status)
+                self.assertEqual(wire['message'], message)
+
+    def test_v27_legacy_encodes_ended_as_status_5(self):
+        """v27 固件没有 case 6：status 6 必须降级为 5 + 单一语义 message。"""
+        wire = board_wire_result({**RESULT, 'status': 6, 'message': '签到已结束'}, legacy=True)
+        self.assertEqual(wire['status'], 5)
+        self.assertEqual(wire['message'], '签到已结束')
+        self.assertEqual(wire['boardText'], '签到已结束')
+        self.assertNotIn('未开始', wire['message'])  # strstr 不能命中 NOT_STARTED
+
+        server = self.exchange_with_result({**RESULT, 'status': 6, 'message': '签到已结束'})
+        record = json.loads(server.data.decode('utf-8'))
+        self.assertEqual(record['status'], 5)
+        self.assertEqual(record['message'], '签到已结束')
+        self.assertEqual(record['boardText'], '签到已结束')
+
+    def test_legacy_leaves_status_5_untouched(self):
+        wire = board_wire_result({**RESULT, 'status': 5, 'message': '签到未开始'}, legacy=True)
+        self.assertEqual(wire['status'], 5)
+        self.assertEqual(wire['message'], '签到未开始')
+
+    def exchange_with_result(self, result, legacy=True):
+        a, b = socket.socketpair()
+        server = _Server(a)
+        thread = threading.Thread(target=server.run)
+        thread.start()
+        send_result_to_board(b, 9, result, legacy=legacy)
+        b.close()
+        thread.join(5)
+        self.assertFalse(thread.is_alive())
+        return server
 
 
 if __name__ == '__main__':

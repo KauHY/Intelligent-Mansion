@@ -431,13 +431,13 @@ export default defineComponent({
     };
     const statusText = (status: number) => {
       const names: Record<number, string> = {
-        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
+        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始', 6: '签到已结束', 7: '处理失败',
       };
       return names[status] || '未知状态';
     };
     const statusColor = (status: number) => {
       const colors: Record<number, string> = {
-        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red',
+        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 6: 'orange', 7: 'red',
       };
       return colors[status] || 'default';
     };
@@ -448,6 +448,8 @@ export default defineComponent({
         NO_PERMISSION: '无权限',
         NOT_RECOGNIZED: '未识别',
         OUT_OF_TIME_WINDOW: '时间窗外',
+        OUT_OF_TIME_WINDOW_NOT_STARTED: '签到未开始',
+        OUT_OF_TIME_WINDOW_ENDED: '签到已结束',
       };
       return names[result] || (result || '未处理');
     };

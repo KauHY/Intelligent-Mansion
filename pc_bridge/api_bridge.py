@@ -160,8 +160,10 @@ def log_identification(result):
 # 板端 LCD 只有单行点阵的显示余量，PC 预先拼好短文案，板端拿到即可渲染。
 BOARD_TEXT = {
     1: '签到成功', 2: '已签到', 3: '非与会人员',
-    4: '未识别', 5: '未在签到时段', 7: '处理失败',
+    4: '未识别', 5: '签到未开始', 6: '签到已结束', 7: '处理失败',
 }
+STATUS_ENDED = 6
+LEGACY_ENDED_STATUS = 5  # v27 firmware has no case 6 in photo_result_set().
 
 
 def board_text(result):
@@ -172,24 +174,43 @@ def board_text(result):
     return text
 
 
-def send_result_to_board(conn, photo_id, result):
+def board_wire_result(result, legacy=True):
+    """Adapt the result JSON to the firmware actually flashed on the board.
+
+    v27 (bins/XiZi-edu-riscv64-v27.bin) dispatches status 5 by inspecting the
+    message: "未开始" -> toast 5, anything else -> toast 6.  It has no case 6,
+    so a raw status 6 falls through to PHOTO_TOAST_FAILED ("识别失败").  Send
+    status 5 with the single-meaning message "签到已结束" instead, which v27
+    maps to toast 6.  Newer firmwares select bitmaps by status and must be
+    started with --no-board-legacy to receive the raw 5/6 codes.
+    """
+    wire = dict(result)
+    wire['boardText'] = board_text(result)
+    if legacy and result.get('status') == STATUS_ENDED:
+        wire['status'] = LEGACY_ENDED_STATUS
+        wire['message'] = '签到已结束'
+    return wire
+
+
+def send_result_to_board(conn, photo_id, result, legacy=True):
     """识别 JSON 回传板端；任何失败只记日志，绝不影响已完成的识别结果。
 
     报文 = 4 字节 JSON 长度（网络字节序）+ JSON 本体，随后 shutdown(SHUT_WR)。
     现有板端固件在 ACK 后立即关闭连接，JSON 写入会以 EPIPE/Reset 告终，
     这是预期行为而不是错误；新固件按长度读完 JSON 后关闭或回 1 字节回执。
     """
+    wire = board_wire_result(result, legacy)
     payload = json.dumps({
-        'status': result.get('status', 7),
-        'message': result.get('message', 'unknown'),
-        'personName': result.get('personName'),
-        'employeeNo': result.get('employeeNo'),
-        'personType': result.get('personType'),
-        'participantCategory': result.get('participantCategory'),
-        'meetingReserveId': result.get('meetingReserveId'),
-        'meetingSubject': result.get('meetingSubject'),
-        'requestId': result.get('requestId'),
-        'boardText': board_text(result),
+        'status': wire.get('status', 7),
+        'message': wire.get('message', 'unknown'),
+        'personName': wire.get('personName'),
+        'employeeNo': wire.get('employeeNo'),
+        'personType': wire.get('personType'),
+        'participantCategory': wire.get('participantCategory'),
+        'meetingReserveId': wire.get('meetingReserveId'),
+        'meetingSubject': wire.get('meetingSubject'),
+        'requestId': wire.get('requestId'),
+        'boardText': wire.get('boardText'),
         'timestamp': timestamp(),
     }, ensure_ascii=False).encode('utf-8')
     try:
@@ -238,7 +259,8 @@ def start_heartbeat():
     thread.start()
 
 
-def handle_client(conn, peer, api_base, device_id, meeting_reserve_id, device_token, rotate_180=False):
+def handle_client(conn, peer, api_base, device_id, meeting_reserve_id, device_token,
+                  rotate_180=False, board_legacy=True):
     try:
         with STATE['lock']:
             STATE['connections'] += 1
@@ -252,7 +274,7 @@ def handle_client(conn, peer, api_base, device_id, meeting_reserve_id, device_to
         with STATE['lock']:
             STATE['received'] += 1
             STATE['last_result'] = f'{result.get("status")}:{result.get("message")}'
-        send_result_to_board(conn, photo['id'], result)
+        send_result_to_board(conn, photo['id'], result, legacy=board_legacy)
     except (OSError, ValueError, TimeoutError) as exc:
         print(f'[error] time={timestamp()} peer={peer[0]}:{peer[1]} {exc}', flush=True)
     finally:
@@ -269,6 +291,9 @@ def main():
     parser.add_argument('--device-token', default='board-token')
     parser.add_argument('--rotate-180', action=argparse.BooleanOptionalAction, default=True,
                         help='rotate board photos 180 degrees before inference; disable with --no-rotate-180')
+    parser.add_argument('--board-legacy', action=argparse.BooleanOptionalAction, default=True,
+                        help='v27 firmware needs status 6 encoded as status 5 + 签到已结束; '
+                             'use --no-board-legacy for firmware that maps status 6 directly')
     args = parser.parse_args()
 
     STATE['started_at'] = time.time()
@@ -282,7 +307,8 @@ def main():
         while True:
             conn, peer = listener.accept()
             with conn:
-                handle_client(conn, peer, args.api_base, args.device_id, args.meeting_reserve_id, args.device_token, args.rotate_180)
+                handle_client(conn, peer, args.api_base, args.device_id, args.meeting_reserve_id,
+                              args.device_token, args.rotate_180, args.board_legacy)
 
 
 if __name__ == '__main__':

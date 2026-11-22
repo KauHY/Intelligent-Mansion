@@ -51,6 +51,7 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
     private static final int STATUS_NO_PERMISSION = 3;
     private static final int STATUS_NOT_RECOGNIZED = 4;
     private static final int STATUS_NOT_STARTED = 5;
+    private static final int STATUS_ENDED = 6;
     private static final int STATUS_FAILED = 7;
     private static final int CATEGORY_MEMBER = 1;
     private static final int CATEGORY_NOT_MEMBER = 2;
@@ -62,6 +63,9 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             "FACE_INFERENCE_EXTRACT_URL", INFERENCE_URL.replaceFirst("/match/?$", "/extract"));
     private static final String INFERENCE_BATCH_URL = System.getenv().getOrDefault(
             "FACE_INFERENCE_BATCH_URL", INFERENCE_URL.replaceFirst("/match/?$", "/match-batch"));
+    /* Time-window outcome must stay distinct: board LCD has separate bitmaps
+     * for "签到未开始" (status 5) and "签到已结束" (status 6). */
+    private enum TimeWindow { OPEN, NOT_STARTED, ENDED }
 
     @Autowired
     private FaceCheckinAttendanceMapper attendanceMapper;
@@ -101,7 +105,8 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 result.setMessage(mapResultToMessage(existingReq.getResult()));
                 result.setParticipantCategory(priorStatus == STATUS_NO_PERMISSION ? CATEGORY_NOT_MEMBER
                         : priorStatus == STATUS_NOT_RECOGNIZED ? CATEGORY_UNREGISTERED
-                        : priorStatus == STATUS_SUCCESS || priorStatus == STATUS_ALREADY || priorStatus == STATUS_NOT_STARTED
+                        : priorStatus == STATUS_SUCCESS || priorStatus == STATUS_ALREADY
+                                || priorStatus == STATUS_NOT_STARTED || priorStatus == STATUS_ENDED
                         ? CATEGORY_MEMBER : null);
                 result.setMeetingReserveId(dto.getMeetingReserveId());
                 if (verifyMeeting != null) { result.setMeetingSubject(verifyMeeting.getMeetingSubject()); }
@@ -183,15 +188,20 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
                 return result;
             }
 
-            if (!checkTimeWindow(dto.getMeetingReserveId())) {
-                result.setStatus(STATUS_NOT_STARTED);
-                result.setMessage("签到未开始或已结束");
+            TimeWindow timeWindow = checkTimeWindow(verifyMeeting);
+            if (timeWindow != TimeWindow.OPEN) {
+                boolean notStarted = timeWindow == TimeWindow.NOT_STARTED;
+                int windowStatus = notStarted ? STATUS_NOT_STARTED : STATUS_ENDED;
+                String windowMessage = notStarted ? "签到未开始" : "签到已结束";
+                String windowResult = notStarted ? "OUT_OF_TIME_WINDOW_NOT_STARTED" : "OUT_OF_TIME_WINDOW_ENDED";
+                result.setStatus(windowStatus);
+                result.setMessage(windowMessage);
                 request.setStatus(1);
-                request.setResult("OUT_OF_TIME_WINDOW");
+                request.setResult(windowResult);
                 request.setPersonId(matched.getId());
                 requestMapper.updateById(request);
                 saveRecognitionEventOnce(dto.getMeetingReserveId(), matched.getId(), matched.getPersonName(),
-                        STATUS_NOT_STARTED, CATEGORY_MEMBER, "与会人员", dto.getRequestId(), dto.getDeviceId(), dto.getPhotoBase64());
+                        windowStatus, CATEGORY_MEMBER, "与会人员", dto.getRequestId(), dto.getDeviceId(), dto.getPhotoBase64());
                 result.setParticipantCategory(CATEGORY_MEMBER);
                 return result;
             }
@@ -293,7 +303,10 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             case "ALREADY_CHECKED_IN": return STATUS_ALREADY;
             case "NO_PERMISSION": return STATUS_NO_PERMISSION;
             case "NOT_RECOGNIZED": return STATUS_NOT_RECOGNIZED;
+            /* Legacy row from before the 5/6 split: keep the old ambiguous code. */
             case "OUT_OF_TIME_WINDOW": return STATUS_NOT_STARTED;
+            case "OUT_OF_TIME_WINDOW_NOT_STARTED": return STATUS_NOT_STARTED;
+            case "OUT_OF_TIME_WINDOW_ENDED": return STATUS_ENDED;
             default: return STATUS_FAILED;
         }
     }
@@ -305,7 +318,10 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
             case "ALREADY_CHECKED_IN": return "已签到";
             case "NO_PERMISSION": return "无权限";
             case "NOT_RECOGNIZED": return "未识别";
+            /* Legacy row from before the 5/6 split: keep the old ambiguous text. */
             case "OUT_OF_TIME_WINDOW": return "签到未开始或已结束";
+            case "OUT_OF_TIME_WINDOW_NOT_STARTED": return "签到未开始";
+            case "OUT_OF_TIME_WINDOW_ENDED": return "签到已结束";
             default: return "处理失败";
         }
     }
@@ -403,13 +419,22 @@ public class FaceCheckinServiceImpl extends ServiceImpl<FaceCheckinPersonMapper,
         }
     }
 
-    private boolean checkTimeWindow(String meetingReserveId) {
-        MeetingReserve reserve = getActiveMeeting(meetingReserveId);
+    private TimeWindow checkTimeWindow(MeetingReserve reserve) {
         if (reserve == null || reserve.getMeetingTimeStart() == null || reserve.getMeetingTimeEnd() == null) {
-            return false;
+            return TimeWindow.NOT_STARTED;
         }
         LocalDateTime now = LocalDateTime.now();
-        return !now.isBefore(reserve.getMeetingTimeStart()) && !now.isAfter(reserve.getMeetingTimeEnd());
+        /* Check-in eligibility follows the ATTENDANCE window, not the meeting
+         * window: a meeting may already be in progress while its attendance
+         * window has not opened yet (or has already closed).  The meeting
+         * window is only the fallback for legacy rows without attendance times. */
+        LocalDateTime start = reserve.getAttendanceStartTime() != null
+                ? reserve.getAttendanceStartTime() : reserve.getMeetingTimeStart();
+        LocalDateTime end = reserve.getAttendanceEndTime() != null
+                ? reserve.getAttendanceEndTime() : reserve.getMeetingTimeEnd();
+        if (now.isBefore(start)) return TimeWindow.NOT_STARTED;
+        if (now.isAfter(end)) return TimeWindow.ENDED;
+        return TimeWindow.OPEN;
     }
 
     @Override

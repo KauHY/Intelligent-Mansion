@@ -440,13 +440,13 @@ export default defineComponent({
 
     const statusText = (status: number) => {
       const statusNames: Record<number, string> = {
-        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始或已结束', 7: '处理失败',
+        1: '签到成功', 2: '重复签到', 3: '无权限', 4: '未识别', 5: '签到未开始', 6: '签到已结束', 7: '处理失败',
       };
       return statusNames[status] || '未知状态';
     };
     const statusColor = (status: number) => {
       const statusColors: Record<number, string> = {
-        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 7: 'red',
+        1: 'green', 2: 'yellow', 3: 'red', 4: 'gray', 5: 'blue', 6: 'orange', 7: 'red',
       };
       return statusColors[status] || 'default';
     };
@@ -740,6 +740,8 @@ export default defineComponent({
       if (record.result === 'ALREADY_CHECKED_IN') return '重复签到';
       if (record.result === 'NO_PERMISSION') return '无权限';
       if (record.result === 'NOT_RECOGNIZED') return '未识别';
+      if (record.result === 'OUT_OF_TIME_WINDOW_NOT_STARTED') return '签到未开始';
+      if (record.result === 'OUT_OF_TIME_WINDOW_ENDED') return '签到已结束';
       if (record.result === 'OUT_OF_TIME_WINDOW') return '时间窗口外';
       return record.status === 1 ? '已处理' : '未处理';
     });

@@ -128,7 +128,10 @@ int main(int argc,char **argv) {
             assert(fwrite(wire,1,24+sizeof(pixels),f)==24+sizeof(pixels));fclose(f);
             /* parser unit checks: keys out of order, spaces, garbage */
             photo_json_result("{\"msg\":\"x\",\"status\": 5}",30);assert(photo_status==5);
+            photo_json_result("{\"status\":6}",12);assert(photo_status==6);
+            assert(photo_status_bitmap(5)==5 && photo_status_bitmap(6)==6);
             photo_json_result("{\"status\":7,\"tail\":\"x\"",24);assert(photo_status==7);
+            assert(photo_status_bitmap(7)==7);
             photo_json_result("{\"message\":\"status\"}",17);assert(photo_status==0);
             photo_json_result("no json here",12);assert(photo_status==0);
         }
