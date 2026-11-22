@@ -140,9 +140,6 @@ static int photo_ethernet_transfer(unsigned int id, const unsigned char *pixels,
         .sn=PHOTO_ETH_NETMASK, .gw=PHOTO_ETH_GATEWAY, .dns={0,0,0,0},
         .dhcp=NETINFO_STATIC };
     size_t size = (size_t)width * height * 2, received = 0;
-    uint32_t json_length;
-    int status;
-    char message[96] = {0}, board_text[128] = {0};
     uint32_t crc = model_crc32(pixels, size), start = PrivGetTickTime();
     const char *stage = "configure network", *reason = "operation failed";
     int rc = 0;

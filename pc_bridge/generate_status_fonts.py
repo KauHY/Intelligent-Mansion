@@ -14,7 +14,8 @@ phrases = [
     (2, '已签到'),
     (3, '非与会人员'),
     (4, '未识别'),
-    (5, '未在签到时段'),
+    (5, '签到未开始'),
+    (6, '签到已结束'),
     (7, '处理失败'),
 ]
 font = ImageFont.truetype('C:/Windows/Fonts/msyh.ttc', 24)
@@ -50,7 +51,7 @@ header = (
     + '\n'.join(decls) + '\n'
     'static const photo_bitmap_t photo_status_fonts[] = {\n'
     '    /* 0 default (JSON unreadable or unknown status): photo captured */\n'
-    '    {(const unsigned char *)photo_font, PHOTO_FONT_W, PHOTO_FONT_H},\n'
+    '    {(const unsigned char *)photo_toast_font[0], PHOTO_FONT_W, PHOTO_FONT_H},\n'
     '    ' + names + ',\n'
     '};\n'
     '/* Map a check-in status code to its toast; unknown codes keep the default. */\n'
@@ -62,7 +63,8 @@ header = (
     '    case 3: return 3;\n'
     '    case 4: return 4;\n'
     '    case 5: return 5;\n'
-    '    case 7: return 6;\n'
+    '    case 6: return 6;\n'
+    '    case 7: return 7;\n'
     '    default: return 0;\n'
     '    }\n'
     '}\n'

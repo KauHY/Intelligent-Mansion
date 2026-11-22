@@ -133,28 +133,9 @@ static void photo_init(void)
 #endif
 }
 
-/* The PC sends boardText for future full-font builds.  This image deliberately
- * uses fixed, audited Chinese artwork for its result categories, so arbitrary
- * names can never render as mojibake on the K210 LCD. */
-static void photo_result_set(int status, const char *message, const char *board_text)
-{
-    unsigned int toast = PHOTO_TOAST_FAILED;
-    switch (status) {
-    case 1: toast = PHOTO_TOAST_SUCCESS; break;
-    case 2: toast = PHOTO_TOAST_DUPLICATE; break;
-    case 3: toast = PHOTO_TOAST_NO_PERMISSION; break;
-    case 4: toast = PHOTO_TOAST_NOT_RECOGNIZED; break;
-    case 5:
-        toast = message && strstr(message, "未开始") ? PHOTO_TOAST_NOT_STARTED : PHOTO_TOAST_ENDED;
-        break;
-    case 7: toast = PHOTO_TOAST_UNAVAILABLE; break;
-    case -1: toast = PHOTO_TOAST_CAPTURED; break;
-    default: break;
-    }
-    photo_toast = toast;
-    printf("[photo] result status=%d toast=%u boardText=%s\n", status, toast,
-           board_text && *board_text ? board_text : "(none)");
-}
+/* Result text is selected by status only (see photo_status_bitmap).  The PC
+ * still sends message/boardText for logs and future full-font builds, but the
+ * fixed-artwork LCD must not depend on parsing free-form Chinese strings. */
 
 /* Called after camera/KPU completion and BEFORE detection boxes are painted.
  * The capture worker cannot start another DVP shot until transmission ends. */
@@ -215,8 +196,6 @@ static void photo_show_saved(int lcd_fd)
     PrivMutexObtain(&photo_mutex);
     if (photo_state == 4) {
         photo_state = 0;
-        toast = photo_toast;
-        photo_toast = PHOTO_TOAST_CAPTURED;
         show = 1;
     }
     PrivMutexAbandon(&photo_mutex);
