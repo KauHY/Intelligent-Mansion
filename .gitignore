@@ -6,3 +6,4 @@ __pycache__/
 photo_wifi_config.h
 /face_match/models/*.onnx
 /face_match/models/*.part
+/docs
