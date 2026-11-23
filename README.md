@@ -413,7 +413,9 @@ python pc_bridge/test_tcp_bridge.py            # 图像桥接收发
 
 | 文档 | 内容 |
 | --- | --- |
-| docs/01-07 | 需求文档与 XiUOS 实验原始资料 |
+| docs/01-07 | 智慧园区官方需求文档与部署指南 |
+| docs/04-06 | XiUOS实验原始资料 |
+| docs/07 | 项目设计文档 |
 
 ## 当前边界
 
